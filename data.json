@@ -1,0 +1,129 @@
+{
+  "admins": [
+    {
+      "id": 2,
+      "name": "Administrator",
+      "email": "admin@pmstore.com",
+      "passwordHash": "$2a$10$cyQWR8Uzpl6w1M9rv7pCleEAHll1KFC9pHaODIF.TtahrnZ5SiGA6",
+      "twoFactorSecret": null,
+      "twoFactorEnabled": false,
+      "createdAt": "2026-08-12T22:45:38.443Z"
+    }
+  ],
+  "products": [
+    {
+      "id": 2,
+      "name": "Aura Smart Speaker",
+      "nameAr": "مكبر صوت ذكي أورا",
+      "category": "smart",
+      "price": 89000,
+      "stock": 42,
+      "sku": "PMS-1001",
+      "image": null,
+      "oldPrice": null
+    },
+    {
+      "id": 3,
+      "name": "Guardian Security Camera",
+      "nameAr": "كاميرا مراقبة جارديان",
+      "category": "smart",
+      "price": 64000,
+      "stock": 5,
+      "sku": "PMS-1002",
+      "image": null,
+      "oldPrice": null
+    },
+    {
+      "id": 4,
+      "name": "Halo Smart Lamp",
+      "nameAr": "مصباح هالو الذكي",
+      "category": "smart",
+      "price": 42000,
+      "stock": 60,
+      "sku": "PMS-1003",
+      "image": null,
+      "oldPrice": null
+    }
+  ],
+  "orders": [],
+  "customers": [],
+  "ads": [],
+  "settings": {
+    "siteName": "PM Store",
+    "tagline": "Smart Life · Care · Home · Innovation",
+    "phone": "+967775201234",
+    "whatsapp": "967775201234",
+    "email": "PMSTORE.YE@GMAIL.COM",
+    "address": "Sana'a, Yemen",
+    "announcement": "",
+    "social": {
+      "facebook": "",
+      "instagram": "",
+      "tiktok": "",
+      "whatsapp": "https://wa.me/967775201234",
+      "youtube": "",
+      "telegram": ""
+    },
+    "wallets": [
+      {
+        "id": "wlt-1",
+        "name": "Jib",
+        "nameAr": "جيب",
+        "number": "",
+        "owner": "",
+        "type": "mobile",
+        "enabled": true
+      },
+      {
+        "id": "wlt-2",
+        "name": "Jawali",
+        "nameAr": "جوالي",
+        "number": "",
+        "owner": "",
+        "type": "mobile",
+        "enabled": true
+      },
+      {
+        "id": "wlt-3",
+        "name": "Al-Kuraimi Bank",
+        "nameAr": "بنك الكريمي",
+        "number": "",
+        "owner": "",
+        "type": "bank",
+        "enabled": true
+      }
+    ],
+    "currencies": {
+      "YER": {
+        "rate": 1,
+        "symbol": "﷼",
+        "label": "Yemeni Rial",
+        "labelAr": "ريال يمني",
+        "decimals": 0
+      },
+      "USD": {
+        "rate": 530,
+        "symbol": "$",
+        "label": "US Dollar",
+        "labelAr": "دولار أمريكي",
+        "decimals": 2
+      },
+      "SAR": {
+        "rate": 140,
+        "symbol": "ر.س",
+        "label": "Saudi Riyal",
+        "labelAr": "ريال سعودي",
+        "decimals": 2
+      }
+    },
+    "defaultCurrency": "YER"
+  },
+  "nextIds": {
+    "admin": 2,
+    "product": 4,
+    "order": 1,
+    "customer": 1,
+    "ad": 1,
+    "wallet": 1
+  }
+}
