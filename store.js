@@ -14,7 +14,7 @@ const path = require('path');
 
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 let getBlobStore = null;
-if (process.env.NETLIFY || process.env.NETLIFY_LOCAL) {
+if ((process.env.NETLIFY && !process.env.NETLIFY_LOCAL) || process.env.NETLIFY_BLOBS_STORE) {
   try {
     const netlifyBlobs = require('@netlify/blobs');
     getBlobStore = () => netlifyBlobs.getStore('pm-store-data');

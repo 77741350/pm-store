@@ -3,3 +3,6 @@ node_modules/
 server.log
 server.err
 *.log
+
+# Local Netlify folder
+.netlify

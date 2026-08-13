@@ -89,7 +89,8 @@ app.use(express.json({ limit: '200kb' }));
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (!origin || origin === `${req.protocol}://${req.get('host')}`) return next();
+  const host = req.get('host');
+  if (!origin || origin === `${req.protocol}://${host}` || origin === `http://${host}` || origin === `https://${host}`) return next();
   cors({
     origin(o, callback) {
       if (allowedOrigins.includes(o) || isProd) return callback(null, true);

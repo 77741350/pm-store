@@ -554,7 +554,7 @@
       catSmart:'Smart Home', catElectronics:'Electronics', catAppliances:'Appliances', catCare:'Personal Care', catDeals:'Deals',
       authTitle:'Customer login', authTitleReg:'Create account', fullName:'Full name', email:'Email', password:'Password',
       signIn:'Sign in', register:'Register', registerInstead:'Register instead', backToLogin:'Back to login',
-      signedInAs:'Signed in as', accountCreated:'Account created', signedIn:'Signed in',
+      signedInAs:'Signed in as', accountCreated:'Account created', signedIn:'Signed in', emailRegistered:'This email is already registered — please log in.',
       shipTitle:'Shipping details', address:'Address', city:'City', postal:'Postal code',
       items:'Items', shipping:'Shipping', free:'Free', total:'Total', reviewOrder:'Review order',
       paymentMethod:'Payment method', choosePayment:'Choose a payment method', cod:'Cash on Delivery',
@@ -592,7 +592,7 @@
       catSmart:'المنزل الذكي', catElectronics:'الإلكترونيات', catAppliances:'الأجهزة المنزلية', catCare:'العناية الشخصية', catDeals:'العروض',
       authTitle:'تسجيل دخول العميل', authTitleReg:'إنشاء حساب', fullName:'الاسم الكامل', email:'البريد الإلكتروني', password:'كلمة المرور',
       signIn:'تسجيل الدخول', register:'إنشاء حساب', registerInstead:'إنشاء حساب بدلاً من ذلك', backToLogin:'العودة لتسجيل الدخول',
-      signedInAs:'تم تسجيل دخولك باسم', accountCreated:'تم إنشاء الحساب', signedIn:'تم تسجيل الدخول',
+      signedInAs:'تم تسجيل دخولك باسم', accountCreated:'تم إنشاء الحساب', signedIn:'تم تسجيل الدخول', emailRegistered:'هذا البريد مسجل مسبقاً — يرجى تسجيل الدخول.',
       shipTitle:'بيانات الشحن', address:'العنوان', city:'المدينة', postal:'الرمز البريدي',
       items:'المنتجات', shipping:'الشحن', free:'مجاني', total:'الإجمالي', reviewOrder:'مراجعة الطلب',
       paymentMethod:'وسيلة الدفع', choosePayment:'اختر وسيلة الدفع', cod:'الدفع عند الاستلام',
@@ -888,7 +888,17 @@
           body: JSON.stringify({ name, email, password }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
+        if (!res.ok) {
+          if (isRegisterMode && res.status === 409 && (data.error || '').toLowerCase().includes('registered')) {
+            const enteredEmail = document.getElementById('auth-email').value;
+            isRegisterMode = false;
+            renderAuthForm();
+            if (enteredEmail) document.getElementById('auth-email').value = enteredEmail;
+            toast(t('emailRegistered'));
+            return;
+          }
+          throw new Error(data.error || 'Failed');
+        }
         store.set('pm_customer_token', data.token);
         store.set('pm_customer_name', data.customer.name);
         customerToken = data.token;

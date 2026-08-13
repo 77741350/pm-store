@@ -2,6 +2,9 @@
   command = "npm install"
   publish = "public"
 
+[build.environment]
+  NODE_ENV = "production"
+
 [functions]
   directory = "netlify/functions"
 
@@ -17,10 +20,10 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api/:splat"
   status = 200
 
 [[redirects]]
   from = "/uploads/*"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api/:splat"
   status = 200
