@@ -13,6 +13,15 @@ const fs = require('fs');
 const path = require('path');
 
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
+let getBlobStore = null;
+if (process.env.NETLIFY || process.env.NETLIFY_LOCAL) {
+  try {
+    const netlifyBlobs = require('@netlify/blobs');
+    getBlobStore = () => netlifyBlobs.getStore('pm-store-data');
+  } catch (err) {
+    console.error('Netlify Blobs unavailable:', err.message);
+  }
+}
 const SEED_RATE = { YER: 1, USD: 1750, SAR: 466 };
 
 function defaultSettings() {
@@ -94,6 +103,25 @@ function load() {
   return state;
 }
 
+async function loadFromBlob() {
+  if (!getBlobStore) return;
+  try {
+    const data = await getBlobStore().get('data.json', { type: 'text' });
+    if (!data) return;
+    const parsed = JSON.parse(data);
+    const base = defaultState();
+    state = {
+      ...base,
+      ...parsed,
+      settings: deepMerge(base.settings, parsed.settings || {}),
+    };
+    if (!state.nextIds) state.nextIds = base.nextIds;
+    console.log('Loaded data from Netlify Blobs');
+  } catch (err) {
+    console.error('Failed to load data from Netlify Blobs:', err.message);
+  }
+}
+
 function save() {
   if (!state) return;
   try {
@@ -103,6 +131,11 @@ function save() {
     fs.renameSync(tmp, DATA_FILE);
   } catch (err) {
     console.error('Failed to save data file:', err.message);
+  }
+  if (getBlobStore) {
+    getBlobStore().set('data.json', JSON.stringify(state)).catch(err => {
+      console.error('Failed to save data to Netlify Blobs:', err.message);
+    });
   }
 }
 
@@ -116,4 +149,4 @@ function reset() {
   return state;
 }
 
-module.exports = { load, save, nextId, reset, defaultSettings, DATA_FILE, SEED_RATE };
+module.exports = { load, save, loadFromBlob, nextId, reset, defaultSettings, DATA_FILE, SEED_RATE };

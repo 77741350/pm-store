@@ -11,6 +11,7 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
+    "@netlify/blobs": "^10.7.13",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -22,6 +23,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
     "qrcode": "^1.5.3",
+    "serverless-http": "^4.0.0",
     "speakeasy": "^2.0.0"
   }
 }

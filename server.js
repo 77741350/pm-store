@@ -1,10 +1,10 @@
-/**
- * PM Store — backend API
+﻿/**
+ * PM Store â€” backend API
  * ---------------------------------------------------------------------------
  * Multi-admin authentication (JWT), products, orders, customers, settings
  * (social links, Yemeni e-wallets, multi-currency), ad campaign manager,
  * staff management, 2FA, and image uploads. Data persists to a JSON file
- * via store.js — swap for Postgres/Mongo when you scale.
+ * via store.js â€” swap for Postgres/Mongo when you scale.
  */
 
 require('dotenv').config();
@@ -28,6 +28,10 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 const isProd = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn('JWT_SECRET not set - using insecure fallback. Set JWT_SECRET in production.');
+  return 'pm-store-insecure-fallback-secret-change-me';
+})();
 
 store.load();
 
@@ -55,9 +59,9 @@ const seedAdmin = async () => {
   }
   if (s.products.length === 0) {
     s.products.push(
-      { id: store.nextId('product'), name: 'Aura Smart Speaker', nameAr: 'مكبر صوت ذكي أورا', category: 'smart', price: 89000, stock: 42, sku: 'PMS-1001', image: null, oldPrice: null },
-      { id: store.nextId('product'), name: 'Guardian Security Camera', nameAr: 'كاميرا مراقبة جارديان', category: 'smart', price: 64000, stock: 5, sku: 'PMS-1002', image: null, oldPrice: null },
-      { id: store.nextId('product'), name: 'Halo Smart Lamp', nameAr: 'مصباح هالو الذكي', category: 'smart', price: 42000, stock: 60, sku: 'PMS-1003', image: null, oldPrice: null },
+      { id: store.nextId('product'), name: 'Aura Smart Speaker', nameAr: 'ظ…ظƒط¨ط± طµظˆطھ ط°ظƒظٹ ط£ظˆط±ط§', category: 'smart', price: 89000, stock: 42, sku: 'PMS-1001', image: null, oldPrice: null },
+      { id: store.nextId('product'), name: 'Guardian Security Camera', nameAr: 'ظƒط§ظ…ظٹط±ط§ ظ…ط±ط§ظ‚ط¨ط© ط¬ط§ط±ط¯ظٹط§ظ†', category: 'smart', price: 64000, stock: 5, sku: 'PMS-1002', image: null, oldPrice: null },
+      { id: store.nextId('product'), name: 'Halo Smart Lamp', nameAr: 'ظ…طµط¨ط§ط­ ظ‡ط§ظ„ظˆ ط§ظ„ط°ظƒظٹ', category: 'smart', price: 42000, stock: 60, sku: 'PMS-1003', image: null, oldPrice: null },
     );
     store.save();
   }
@@ -97,12 +101,15 @@ app.use((req, res, next) => {
 
 app.use(morgan(isProd ? 'combined' : 'dev'));
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000 });
+const ipKey = (req) => req.ip || (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket.remoteAddress || 'unknown';
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, keyGenerator: ipKey, validate: false });
 app.use(apiLimiter);
 
 const loginLimiter = rateLimit({
   windowMs: (Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MINUTES) || 15) * 60 * 1000,
   max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 20,
+  keyGenerator: ipKey,
+  validate: false,
   message: { error: 'Too many login attempts. Try again later.' },
 });
 
@@ -115,7 +122,7 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 // Auth helpers
 // ---------------------------------------------------------------------------
 function signToken(payload) {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
 }
 
 function requireAdmin(req, res, next) {
@@ -123,7 +130,7 @@ function requireAdmin(req, res, next) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Missing auth token' });
   try {
-    req.adminPayload = jwt.verify(token, process.env.JWT_SECRET);
+    req.adminPayload = jwt.verify(token, JWT_SECRET);
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
@@ -154,7 +161,7 @@ app.post(
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
 
     if (admin.twoFactorEnabled && admin.twoFactorSecret) {
-      const halfToken = jwt.sign({ adminId: admin.id, email: admin.email, role: 'admin', pending2fa: true }, process.env.JWT_SECRET, { expiresIn: '10m' });
+      const halfToken = jwt.sign({ adminId: admin.id, email: admin.email, role: 'admin', pending2fa: true }, JWT_SECRET, { expiresIn: '10m' });
       return res.json({ token: halfToken, requires2fa: true });
     }
 
@@ -170,7 +177,7 @@ app.post(
   body('code').isString().isLength({ min: 6, max: 6 }),
   async (req, res) => {
     try {
-      const payload = jwt.verify(req.body.token, process.env.JWT_SECRET);
+      const payload = jwt.verify(req.body.token, JWT_SECRET);
       if (!payload.pending2fa) return res.status(401).json({ error: 'Invalid session' });
       const admin = adminById(payload.adminId);
       if (!admin || !admin.twoFactorEnabled || !admin.twoFactorSecret) return res.status(401).json({ error: 'Invalid session' });
@@ -208,7 +215,7 @@ app.put(
 app.get('/api/auth/2fa/setup', requireAdmin, (req, res) => {
   const admin = adminById(req.adminPayload.adminId);
   if (!admin) return res.status(404).json({ error: 'Not found' });
-  const secret = speakeasy.generateSecret({ name: `PM Store — ${admin.email}`, length: 20 });
+  const secret = speakeasy.generateSecret({ name: `PM Store â€” ${admin.email}`, length: 20 });
   admin.twoFactorSecret = secret.base32;
   store.save();
   QRCode.toDataURL(secret.otpauth_url, (err, dataUrl) => {
@@ -301,7 +308,7 @@ app.delete('/api/admins/:id', requireAdmin, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Customers — register/login for storefront users
+// Customers â€” register/login for storefront users
 // ---------------------------------------------------------------------------
 app.post(
   '/api/auth/register',
@@ -325,7 +332,7 @@ app.post(
     };
     s.customers.push(customer);
     store.save();
-    const token = jwt.sign({ customerId: customer.id, email: customer.email, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
+    const token = jwt.sign({ customerId: customer.id, email: customer.email, role: 'customer' }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
     res.status(201).json({ token, expiresIn: process.env.JWT_EXPIRES_IN || '8h', customer: { name: customer.name, email: customer.email } });
   }
 );
@@ -347,7 +354,7 @@ app.post(
     const valid = await bcrypt.compare(req.body.password, customer.passwordHash);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
 
-    const token = jwt.sign({ customerId: customer.id, email: customer.email, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
+    const token = jwt.sign({ customerId: customer.id, email: customer.email, role: 'customer' }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
     res.json({ token, expiresIn: process.env.JWT_EXPIRES_IN || '8h', customer: { name: customer.name, email: customer.email } });
   }
 );
@@ -620,6 +627,11 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: isProd ? 'Something went wrong' : err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`PM Store API listening on port ${PORT} (${isProd ? 'production' : 'development'})`);
-});
+if (require.main === module && !process.env.NETLIFY) {
+  app.listen(PORT, () => {
+    console.log(`PM Store API listening on port ${PORT} (${isProd ? 'production' : 'development'})`);
+  });
+}
+
+module.exports = app;
+
