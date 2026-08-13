@@ -6,3 +6,6 @@ server.err
 
 # Local Netlify folder
 .netlify
+
+deno.lock
+.netlify/

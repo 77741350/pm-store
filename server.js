@@ -23,6 +23,7 @@ const multer = require('multer');
 const { body, validationResult } = require('express-validator');
 
 const store = require('./store');
+const { sendMail } = require('./mail');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -335,6 +336,23 @@ app.post(
     store.save();
     const token = jwt.sign({ customerId: customer.id, email: customer.email, role: 'customer' }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
     res.status(201).json({ token, expiresIn: process.env.JWT_EXPIRES_IN || '8h', customer: { name: customer.name, email: customer.email } });
+
+    const siteName = store.load().settings.siteName || 'PM Store';
+    const escapedName = String(name).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    sendMail({
+      to: email,
+      subject: siteName + ' - ' + (process.env.MAIL_LANG === 'ar' ? 'تم إنشاء حسابك بنجاح' : 'Account created successfully'),
+      text: `Welcome to ${siteName}, ${name}!\nYour account has been created successfully.\nEmail: ${email}\n\nVisit us to start shopping.`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;border:1px solid #eee;border-radius:12px;overflow:hidden">
+        <div style="background:#7A1F2C;color:#fff;padding:18px 24px"><h2 style="margin:0">${siteName}</h2></div>
+        <div style="padding:24px">
+          <h3>${process.env.MAIL_LANG === 'ar' ? 'مرحباً' : 'Welcome'}, ${escapedName}!</h3>
+          <p>${process.env.MAIL_LANG === 'ar' ? 'تم إنشاء حسابك بنجاح في متجرنا.' : 'Your account has been created successfully.'}</p>
+          <p>${process.env.MAIL_LANG === 'ar' ? 'بريدك الإلكتروني:' : 'Your email:'} <b>${escapedName && email}</b></p>
+          <p style="color:#58595B;font-size:0.9rem">${process.env.MAIL_LANG === 'ar' ? 'نتمنى لك تسوقاً ممتعاً!' : 'Happy shopping!'}</p>
+        </div>
+      </div>`,
+    }).catch(() => {});
   }
 );
 
