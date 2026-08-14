@@ -1,0 +1,34 @@
+# PM Store — Koyeb app config (used by the Koyeb CLI: `koyeb app init` then `koyeb deploy`)
+# Fill in the SECRET env vars (PM_BLOBS_TOKEN, ADMIN_PASSWORD) in the Koyeb
+# dashboard after creation — never commit them here.
+app:
+  name: pm-store
+  regions:
+    - fra
+  services:
+    - name: web
+      type: web
+      instance_type: nano
+      dockerfile: Dockerfile
+      ports:
+        - port: 8000
+          protocol: http
+      routes:
+        - port: 8000
+          path: /
+      health_checks:
+        - port: 8000
+          path: /api/health
+      env:
+        - name: NODE_ENV
+          value: production
+        - name: PORT
+          value: "8000"
+        - name: ADMIN_EMAIL
+          value: admin@pmstore.com
+        # Same Netlify Blobs store used by the current Netlify host — the data
+        # carries over to Koyeb automatically (site ID + account token + region).
+        - name: NETLIFY_BLOBS_SITE_ID
+          value: 7f9609ad-bb30-40bb-b546-f2da64eeeda3
+        - name: NETLIFY_BLOBS_REGION
+          value: us-east-2

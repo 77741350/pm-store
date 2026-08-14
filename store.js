@@ -13,14 +13,41 @@ const fs = require('fs');
 const path = require('path');
 
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
-let getBlobStore = null;
-if ((process.env.NETLIFY && !process.env.NETLIFY_LOCAL) || process.env.NETLIFY_BLOBS_STORE) {
+// Netlify injects the Blobs context per invocation (not at module load), so the
+// store is created lazily the first time it is actually used. When the context
+// is unavailable (plain local runs), getStore() throws and we fall back to the
+// local data file.
+// IMPORTANT: Netlify also injects NETLIFY_BLOBS_TOKEN for v1 functions, but it
+// is scoped to the current deploy — writes under it vanish on the next deploy.
+// We therefore prefer PM_BLOBS_TOKEN (the durable account token) whenever it is
+// set, and only fall back to the injected variable for local dev.
+let blobStore = null;
+let blobStoreInitialized = false;
+// The store is created lazily. When the Netlify runtime injects the Blobs
+// context (Functions v2, `netlify dev`, build plugins) the plain `getStore`
+// call picks it up automatically. On hosts that do not inject a context
+// (plain Functions v1 deploys, custom runtimes), we build the store from
+// explicit credentials supplied via env vars (NETLIFY_BLOBS_SITE_ID,
+// PM_BLOBS_TOKEN, NETLIFY_BLOBS_REGION).
+function getBlobStore() {
+  if (blobStoreInitialized) return blobStore;
+  blobStoreInitialized = true;
   try {
     const netlifyBlobs = require('@netlify/blobs');
-    getBlobStore = () => netlifyBlobs.getStore('pm-store-data');
+    const siteID = process.env.NETLIFY_BLOBS_SITE_ID;
+    const token = process.env.PM_BLOBS_TOKEN || process.env.NETLIFY_BLOBS_TOKEN;
+    const region = process.env.NETLIFY_BLOBS_REGION;
+    if (siteID && token) {
+      const options = { name: 'pm-store-data', siteID, token };
+      if (region) options.region = region;
+      blobStore = netlifyBlobs.getStore(options);
+    } else {
+      blobStore = netlifyBlobs.getStore('pm-store-data');
+    }
   } catch (err) {
-    console.error('Netlify Blobs unavailable:', err.message);
+    blobStore = null;
   }
+  return blobStore;
 }
 const SEED_RATE = { YER: 1, USD: 1750, SAR: 466 };
 
@@ -68,6 +95,7 @@ function defaultState() {
 }
 
 let state = null;
+let lastBlobError = null;
 
 function deepMerge(target, source) {
   for (const key of Object.keys(source)) {
@@ -104,9 +132,10 @@ function load() {
 }
 
 async function loadFromBlob() {
-  if (!getBlobStore) return;
+  const s = getBlobStore();
+  if (!s) return;
   try {
-    const data = await getBlobStore().get('data.json', { type: 'text' });
+    const data = await s.get('data.json', { type: 'text' });
     if (!data) return;
     const parsed = JSON.parse(data);
     const base = defaultState();
@@ -122,8 +151,10 @@ async function loadFromBlob() {
   }
 }
 
-function save() {
+async function save() {
   if (!state) return;
+  // Best-effort local file write (fails harmlessly on read-only hosts like
+  // Netlify Functions; the Blobs write below is the source of truth there).
   try {
     fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
     const tmp = DATA_FILE + '.tmp';
@@ -132,10 +163,17 @@ function save() {
   } catch (err) {
     console.error('Failed to save data file:', err.message);
   }
-  if (getBlobStore) {
-    getBlobStore().set('data.json', JSON.stringify(state)).catch(err => {
+  const s = getBlobStore();
+  if (s) {
+    try {
+      // Awaited so the write finishes before the serverless instance can be
+      // frozen (fire-and-forget writes may never complete after a response).
+      await s.set('data.json', JSON.stringify(state));
+      lastBlobError = null;
+    } catch (err) {
+      lastBlobError = err.message;
       console.error('Failed to save data to Netlify Blobs:', err.message);
-    });
+    }
   }
 }
 
@@ -149,4 +187,4 @@ function reset() {
   return state;
 }
 
-module.exports = { load, save, loadFromBlob, nextId, reset, defaultSettings, DATA_FILE, SEED_RATE };
+module.exports = { load, save, loadFromBlob, nextId, reset, defaultSettings, DATA_FILE, SEED_RATE, lastBlobError };

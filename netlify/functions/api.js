@@ -8,6 +8,7 @@ function getHandler() {
     initPromise = (async () => {
       await store.loadFromBlob();
       const app = require('../../server');
+      if (app.ready) await app.ready;
       return serverless(app);
     })();
   }

@@ -1,118 +1,84 @@
-# PM Store — Domain, Hosting &amp; Security Setup Guide
+# PM Store — دليل النشر على Koyeb المجاني وربط النطاق
 
-This covers the parts I can't do for you directly — I don't have access to
-a payment method, a domain registrar account, or any hosting account of
-yours. Everything below is written so you (or a developer) can follow it
-step by step.
+> المشروع كامل وجاهز: تطبيق Node واحد (`server.js`) يخدم الواجهة + API + رفع الصور.
+> البيانات محفوظة في **Netlify Blobs** (وليست على قرص الاستضافة) — لذلك عند النشر على
+> أي استضافة جديدة مع ضبط متغيرات البيئة نفسها، ستجد كل البيانات الحالية موجودة.
 
 ---
 
-## 1. Domain
+## 1) إنشاء حساب Koyeb
 
-1. **Pick a registrar.** Namecheap, Google Domains successor (Squarespace
-   Domains), Cloudflare Registrar, or GoDaddy all work. Cloudflare sells at
-   cost with no markup, which is worth it if you're price-sensitive.
-2. **Search and buy** `pmstore.com` or your preferred variant. If it's
-   taken, common fallbacks: `pmstore.shop`, `getpmstore.com`,
-   `pmstore.store`.
-3. **Turn on WHOIS privacy** (usually free or ~$1/mo) so your name/address
-   aren't publicly listed against the domain.
-4. **Enable two-factor authentication on the registrar account itself** —
-   domain theft usually happens through the registrar login, not the site.
+1. اذهب إلى <https://app.koyeb.com> وسجّل (Google/GitHub/بريد إلكتروني).
+2. **لا حاجة لبطاقة ائتمان** — الطبقة المجانية دائماً متاحة:
+   - خدمة ويب واحدة: 512MB RAM / 0.1 vCPU / 2GB قرص.
+   - **Scale-to-zero**: الخدمة تنام بعد الخمول وتستيقظ تلقائياً عند الزيارة.
+   - **5 نطاقات مخصصة** + SSL تلقائي مجاني.
+   - المنطقة: Frankfurt أو Washington DC.
 
-## 2. Hosting
+## 2) رفع الكود
 
-You need two things hosted separately: the storefront (static HTML) and
-the API (the `backend/` folder).
+لديك مساران — اختر أحدهما:
 
-**Storefront (`frontend/index.html`, `frontend/admin.html`):**
-- Cloudflare Pages, Vercel, or Netlify — all have free tiers, automatic
-  HTTPS, and a global CDN. Drag-and-drop the `frontend/` folder or connect
-  a git repo for auto-deploys.
+### الطريقة أ (الأسهل) — من GitHub
 
-**API (`backend/`):**
-- Render, Railway, or Fly.io — push the `backend/` folder, set the
-  environment variables from `.env.example` in their dashboard, done.
-  See `backend/README.md` for the exact steps.
+1. أنشئ مستودعاً خاصاً أو عاماً على GitHub باسم مثل `pm-store`.
+2. ارفع ملفات المشروع إليه (لا ترفع `.env` ولا `data.json` ولا `node_modules` — كلها في `.gitignore` و`.dockerignore`).
+3. في لوحة Koyeb: **Create App → GitHub** → اختر المستودع.
+4. في إعدادات الخدمة:
+   - **Builder**: `Dockerfile` (سيكتشف `Dockerfile` الموجود تلقائياً).
+   - **Exposed ports**: `8000:http`
+   - **Routes**: `/` → `8000`
+   - **Health checks**: `8000` → `http` → `/api/health`
+   - **Region**: Frankfurt أو Washington.
 
-## 3. Connecting the domain
+### الطريقة ب — سطر الأوامر (بدون GitHub)
 
-Once both are deployed, each platform gives you a set of DNS records to
-add (usually a `CNAME` or a few `A` records). At your registrar's DNS
-settings:
+1. ثبّت Koyeb CLI: <https://github.com/koyeb/koyeb-cli>
+2. نفّذ داخل مجلد المشروع:
+   ```
+   koyeb login
+   koyeb app init pm-store
+   koyeb deploy
+   ```
+3. أضف متغيرات البيئة من البند التالي في لوحة Koyeb.
 
-| Subdomain | Points to | Purpose |
+## 3) متغيرات البيئة (الأهم)
+
+في لوحة Koyeb → App → Settings → Environment variables، أضف:
+
+| المتغير | القيمة | ملاحظة |
 |---|---|---|
-| `www.pmstore.com` / `pmstore.com` | Your storefront host | Public site |
-| `admin.pmstore.com` | Your storefront host, admin.html | Admin panel — see note below |
-| `api.pmstore.com` | Your backend host | The API |
+| `NODE_ENV` | `production` | |
+| `PORT` | `8000` | يجب أن يطابق المنفذ المكشوف |
+| `JWT_SECRET` | نص عشوائي طويل | مولّد في `render.yaml` أيضاً |
+| `ADMIN_EMAIL` | `admin@pmstore.com` | |
+| `NETLIFY_BLOBS_SITE_ID` | `7f9609ad-bb30-40bb-b546-f2da64eeeda3` | **إلزامي** لنقل البيانات |
+| `NETLIFY_BLOBS_REGION` | `us-east-2` | **إلزامي** |
+| `PM_BLOBS_TOKEN` | توكن حساب Netlify (سري) | **إلزامي** — أضفه كـ Secret |
+| `ADMIN_PASSWORD` | كلمة مرور قوية من اختيارك (سري) | تُستخدم فقط إذا كان المخزن فارغاً — لا تضعها في أي ملف مشروع |
 
-Propagation typically takes anywhere from a few minutes to 24 hours.
+> المتغيرات الثلاثة `NETLIFY_BLOBS_*` + `PM_BLOBS_TOKEN` تجعل التطبيق يقرأ ويكتب
+> نفس مخزن البيانات الحالي على Netlify — فتنتقل المنتجات والطلبات والموظفون تلقائياً.
 
-**Consider not putting the admin panel on a guessable path.** Options, in
-order of effort:
-- Simplest: keep `admin.html` off any public nav link (it already is), and
-  treat login as the only gate.
-- Better: put `admin.pmstore.com` behind your hosting platform's built-in
-  password protection (Cloudflare Access, Vercel password protection, or
-  Netlify's basic auth add-on) as a second layer in front of the app's own
-  login.
-- Most robust: restrict `admin.pmstore.com` to specific IP addresses if
-  your team works from fixed locations (the "Restrict admin access by IP"
-  toggle in the admin panel is a placeholder for this — the real
-  enforcement has to happen at the network/hosting level, e.g. Cloudflare
-  Access rules).
+## 4) التحقق
 
-## 4. SSL / HTTPS
+بعد نجاح النشر ستجد التطبيق على رابط مثل `https://pm-store-kurt.koyeb.app`:
 
-If you use any of the platforms above (Cloudflare Pages, Vercel, Netlify,
-Render, Railway, Fly.io), HTTPS is automatic and free — nothing to
-configure. If you instead run the backend on a raw VPS, use
-[Certbot](https://certbot.eff.org/) to get a free Let's Encrypt certificate
-and set it to auto-renew.
+- افتح `/api/health` → يجب أن يعيد `{"status":"ok"}`
+- افتح `/` → واجهة المتجر
+- افتح `/admin` → سجّل بالبريد الذي ضبطته في `ADMIN_EMAIL` وكلمة المرور التي ضبطتها في `ADMIN_PASSWORD`
+- تحقق من `/api/products` → يجب أن تظهر المنتجات الثلاثة نفسها من Netlify
 
-Either way: **force HTTPS everywhere** — most of these platforms redirect
-HTTP → HTTPS by default, but it's worth confirming in the dashboard.
+## 5) ربط النطاق `pmstore.ye` (عندما تمتلكه)
 
-## 5. Security settings — what's already in the code vs. what you configure
+1. في لوحة Koyeb: **App → Settings → Domains → Add Domain**.
+   أضف `pmstore.ye` وأيضاً `www.pmstore.ye`.
+2. سيعطيك Koyeb سجلات DNS المطلوبة (عادة `CNAME` لـ `www` وسجل `A` للنطاق الرئيسي — أو `CNAME` مع خدمة ALIAS).
+3. اذهب إلى **مسجّل النطاق** (إذا كان `.ye` فعادة عبر TeleYemen) وأضف السجلات المعطاة في إعدادات DNS.
+4. انتظر الانتشار (دقائق إلى 24 ساعة) — سيصدر Koyeb شهادة SSL تلقائياً.
 
-**Already implemented in `backend/server.js`:**
-- Security headers (helmet)
-- CORS allowlist (only your real domains can call the API)
-- Rate limiting (general + a tighter limit on login, to blunt brute-force attempts)
-- Passwords hashed with bcrypt, never stored or logged in plaintext
-- JWT-based sessions with an expiry
-- Input validation on every write endpoint
-- Generic error messages in production (no stack traces leaked to users)
+## ملاحظات
 
-**You configure at the platform/account level:**
-- [ ] Two-factor authentication on: domain registrar, hosting accounts, and
-  your email (email is the recovery path for everything else)
-- [ ] A password manager for the admin password and all API keys — not
-  saved in chat, notes apps, or spreadsheets
-- [ ] Environment variables set in the hosting dashboard, never committed
-  to git (`.env` should be in `.gitignore`)
-- [ ] Database backups turned on, once you connect a real database
-  (see `backend/README.md`)
-- [ ] Uptime monitoring (e.g. UptimeRobot, free tier) pointed at
-  `api.pmstore.com/api/health`
-- [ ] A process for rotating the JWT secret and admin password
-  periodically, and immediately if you ever suspect a leak
-
-## 6. What the admin panel's "Security" tab does today
-
-The toggles for two-factor authentication, login alerts, and IP
-restriction in `admin.html` are **UI placeholders** — they show the
-intended settings and give the store owner a toast confirmation, but
-nothing is wired to real enforcement yet. To make them real:
-
-- **2FA**: add TOTP (e.g. `speakeasy` npm package) to the `/api/auth/login`
-  flow in `server.js`, requiring a 6-digit code after password.
-- **Login alerts**: send an email (e.g. via Resend or SendGrid) from the
-  login route whenever a new session is created.
-- **IP restriction**: enforce at the network layer (Cloudflare Access
-  rule, or an allowlist check in Express) rather than in the front end.
-
-This is intentionally left as a next step rather than faked more deeply —
-better to have an honest placeholder than a toggle that looks like it's
-protecting you when it isn't.
+- **النوم عند الخمول**: على الطبقة المجانية، أول زيارة بعد فترة خمول تستغرق ~10–30 ثانية (استيقاظ). بعدها كل شيء سريع.
+- **البيانات**: لا تخزن على قرص Koyeb (القرص مؤقت) — التخزين الحقيقي في Netlify Blobs.
+- **إيميلات الطلبات**: لازالت بحاجة لـ Gmail App Password لإرسال إيميلات العملاء.

@@ -9,9 +9,11 @@ A complete store (Arabic + English) built on Express with a REST API.
   cart, customer register/login, checkout with Yemeni e-wallets, social
   media links (Facebook / Instagram / TikTok / WhatsApp / YouTube / Telegram)
   and contact phone **+967 775 201 234**.
-- **Data**: products, orders, customers and settings persist to a JSON file
-  (`data.json`, path via `DATA_FILE`). Swap for Postgres/Mongo when you
-  outgrow it.
+- **Data**: products, orders, customers and settings persist to **Netlify
+  Blobs** when blob credentials are set (`NETLIFY_BLOBS_SITE_ID` +
+  `PM_BLOBS_TOKEN` + `NETLIFY_BLOBS_REGION`), and fall back to a local JSON
+  file (`data.json`) otherwise. The same blob store can be shared across
+  hosts (Netlify, Render, Koyeb...), so data follows the deployment.
 - **Security**: helmet CSP, CORS allowlist, rate limiting on login/API,
   bcrypt password hashing, JWT sessions, input validation.
 - **Email**: sends an account confirmation to customers on sign-up when
@@ -40,23 +42,25 @@ Open `http://localhost:4000`.
 
 ## Deploy 24/7 (free cloud hosting)
 
-This repo includes a `netlify.toml` (deploy to Netlify) and a `render.yaml`
-blueprint. Fastest path:
+The repo ships with three deployment configs:
+
+- `netlify.toml` — storefront + serverless API (already live on Netlify).
+- `render.yaml` — Render blueprint (free web service).
+- `Dockerfile` + `koyeb.yaml` — Koyeb (free web service, scale-to-zero).
+
+Fastest path on **Render**:
 
 1. Push this folder to GitHub.
-2. **Netlify**: import the repo — `netlify.toml` deploys the storefront and
-   the API as a serverless function automatically.
-3. In the site's environment, set:
-   - `JWT_SECRET` (use the generated value)
-   - `NODE_ENV=production`
-   - SMTP vars to enable sign-up confirmation emails
-     (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
-     `MAIL_FROM`, `MAIL_LANG`).
+2. In the Render dashboard: **New → Blueprint** → select the repo.
+   Render reads `render.yaml` (start `node server.js`, health check
+   `/api/health`) and creates the service.
+3. In the service dashboard add the **secrets** (never commit them):
+   - `PM_BLOBS_TOKEN` — Netlify account token (required for shared data).
+   - `ADMIN_PASSWORD` — first admin password (seeded only if empty).
 4. Health check is exposed at `/api/health`.
 
-Note: on free tiers, `data.json` and uploaded images reset on redeploy. For
-durable production data, add a database (Postgres/Mongo) and point
-`DATA_FILE`/uploads at it, or switch `store.js` to a real database.
+Data is durable because it lives in **Netlify Blobs**, not on the host disk —
+it survives redeploys and moves with you between hosts.
 
 ## Security checklist
 

@@ -1,13 +1,10 @@
 node_modules/
+.git/
 .env
+*.log
 server.log
 server.err
-*.log
 data.json
 uploads/
-
-# Local Netlify folder
-.netlify
-
-deno.lock
 .netlify/
+.pm/

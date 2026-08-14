@@ -55,7 +55,7 @@ const seedAdmin = async () => {
       twoFactorEnabled: false,
       createdAt: new Date().toISOString(),
     });
-    store.save();
+    await store.save();
     console.log(`Seeded admin account: ${email}`);
   }
   if (s.products.length === 0) {
@@ -64,10 +64,15 @@ const seedAdmin = async () => {
       { id: store.nextId('product'), name: 'Guardian Security Camera', nameAr: 'ظƒط§ظ…ظٹط±ط§ ظ…ط±ط§ظ‚ط¨ط© ط¬ط§ط±ط¯ظٹط§ظ†', category: 'smart', price: 64000, stock: 5, sku: 'PMS-1002', image: null, oldPrice: null },
       { id: store.nextId('product'), name: 'Halo Smart Lamp', nameAr: 'ظ…طµط¨ط§ط­ ظ‡ط§ظ„ظˆ ط§ظ„ط°ظƒظٹ', category: 'smart', price: 42000, stock: 60, sku: 'PMS-1003', image: null, oldPrice: null },
     );
-    store.save();
+    await store.save();
   }
 };
-seedAdmin();
+// Expose a ready promise so the serverless entrypoint can wait for seeding
+// (bcrypt hashing) before serving the first request — avoids a cold-start race
+// where a login arrives before the first admin account exists.
+app.ready = seedAdmin().catch(err => {
+  console.error('Failed to seed admin:', err);
+});
 
 // ---------------------------------------------------------------------------
 // Core middleware
@@ -116,9 +121,69 @@ const loginLimiter = rateLimit({
 });
 
 // Static uploads (product images)
+// On Netlify Functions the filesystem is read-only, so images go to Netlify
+// Blobs when the runtime provides the Blobs context; otherwise they fall back
+// to a writable directory (local development) or the OS temp directory.
+const os = require('os');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use('/uploads', express.static(UPLOAD_DIR));
+let uploadsDiskDir = null;
+try {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  uploadsDiskDir = UPLOAD_DIR;
+} catch (err) {
+  uploadsDiskDir = null;
+}
+if (uploadsDiskDir) app.use('/uploads', express.static(UPLOAD_DIR));
+
+// Netlify injects the Blobs context per invocation, so the store is created
+// lazily on first use and never gated on a Netlify-specific env variable.
+let uploadsBlob = null;
+let uploadsBlobChecked = false;
+function getUploadsBlob() {
+  if (uploadsBlobChecked) return uploadsBlob;
+  uploadsBlobChecked = true;
+  try {
+    const netlifyBlobs = require('@netlify/blobs');
+    const siteID = process.env.NETLIFY_BLOBS_SITE_ID;
+    const token = process.env.PM_BLOBS_TOKEN || process.env.NETLIFY_BLOBS_TOKEN;
+    const region = process.env.NETLIFY_BLOBS_REGION;
+    if (siteID && token) {
+      const options = { name: 'pm-store-images', siteID, token };
+      if (region) options.region = region;
+      uploadsBlob = netlifyBlobs.getStore(options);
+    } else {
+      uploadsBlob = netlifyBlobs.getStore('pm-store-images');
+    }
+  } catch (err) {
+    uploadsBlob = null;
+  }
+  return uploadsBlob;
+}
+
+app.get('/uploads/:file', async (req, res) => {
+  if (!/^[a-zA-Z0-9._-]+$/.test(req.params.file)) return res.status(404).json({ error: 'Image not found' });
+  const store = getUploadsBlob();
+  if (store) {
+    try {
+      const meta = await store.getWithMetadata(req.params.file);
+      if (!meta) return res.status(404).json({ error: 'Image not found' });
+      const data = await store.get(req.params.file, { type: 'arrayBuffer' });
+      if (data == null) return res.status(404).json({ error: 'Image not found' });
+      const buf = Buffer.from(data);
+      const type = (meta.metadata && meta.metadata.contentType) || 'application/octet-stream';
+      res.setHeader('Content-Type', type);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.send(buf);
+    } catch (err) {
+      console.error('Failed to read image from Netlify Blobs:', err.message);
+      return res.status(500).json({ error: 'Failed to load image' });
+    }
+  }
+  const dir = uploadsDiskDir || path.join(os.tmpdir(), 'pm-store-uploads');
+  const filePath = path.join(dir, req.params.file);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Image not found' });
+  return res.sendFile(filePath);
+});
 
 // ---------------------------------------------------------------------------
 // Auth helpers
@@ -208,18 +273,18 @@ app.put(
     if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
 
     admin.passwordHash = await bcrypt.hash(req.body.password, 12);
-    store.save();
+    await store.save();
     res.json({ ok: true });
   }
 );
 
 // --- 2FA setup / verify (per admin) ---
-app.get('/api/auth/2fa/setup', requireAdmin, (req, res) => {
+app.get('/api/auth/2fa/setup', requireAdmin, async (req, res) => {
   const admin = adminById(req.adminPayload.adminId);
   if (!admin) return res.status(404).json({ error: 'Not found' });
   const secret = speakeasy.generateSecret({ name: `PM Store â€” ${admin.email}`, length: 20 });
   admin.twoFactorSecret = secret.base32;
-  store.save();
+  await store.save();
   QRCode.toDataURL(secret.otpauth_url, (err, dataUrl) => {
     res.json({ qr: dataUrl, secret: secret.base32 });
   });
@@ -229,23 +294,23 @@ app.post(
   '/api/auth/2fa/verify',
   requireAdmin,
   body('code').isString().isLength({ min: 6, max: 6 }),
-  (req, res) => {
+  async (req, res) => {
     const admin = adminById(req.adminPayload.adminId);
     if (!admin || !admin.twoFactorSecret) return res.status(400).json({ error: 'No 2FA secret generated' });
     const ok = speakeasy.totp.verify({ secret: admin.twoFactorSecret, code: req.body.code, window: 1 });
     if (!ok) return res.status(401).json({ error: 'Invalid code' });
     admin.twoFactorEnabled = true;
-    store.save();
+    await store.save();
     res.json({ ok: true });
   }
 );
 
-app.delete('/api/auth/2fa', requireAdmin, (req, res) => {
+app.delete('/api/auth/2fa', requireAdmin, async (req, res) => {
   const admin = adminById(req.adminPayload.adminId);
   if (!admin) return res.status(404).json({ error: 'Not found' });
   admin.twoFactorEnabled = false;
   admin.twoFactorSecret = null;
-  store.save();
+  await store.save();
   res.json({ ok: true });
 });
 
@@ -278,7 +343,7 @@ app.post(
       createdAt: new Date().toISOString(),
     };
     s.admins.push(admin);
-    store.save();
+    await store.save();
     res.status(201).json({ id: admin.id, name: admin.name, email: admin.email });
   }
 );
@@ -293,19 +358,19 @@ app.put(
     if (!admin) return res.status(404).json({ error: 'Admin not found' });
     if (req.body.name) admin.name = req.body.name;
     if (req.body.password) admin.passwordHash = await bcrypt.hash(req.body.password, 12);
-    store.save();
+    await store.save();
     res.json({ id: admin.id, name: admin.name, email: admin.email });
   }
 );
 
-app.delete('/api/admins/:id', requireAdmin, (req, res) => {
+app.delete('/api/admins/:id', requireAdmin, async (req, res) => {
   const s = store.load();
   const target = adminById(req.params.id);
   if (!target) return res.status(404).json({ error: 'Admin not found' });
   if (target.id === req.adminPayload.adminId) return res.status(400).json({ error: 'You cannot remove yourself' });
   if (s.admins.length === 1) return res.status(400).json({ error: 'Cannot remove the last admin' });
   s.admins = s.admins.filter(a => a.id !== target.id);
-  store.save();
+  await store.save();
   res.json({ ok: true });
 });
 
@@ -333,7 +398,7 @@ app.post(
       createdAt: new Date().toISOString(),
     };
     s.customers.push(customer);
-    store.save();
+    await store.save();
     const token = jwt.sign({ customerId: customer.id, email: customer.email, role: 'customer' }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
     res.status(201).json({ token, expiresIn: process.env.JWT_EXPIRES_IN || '8h', customer: { name: customer.name, email: customer.email } });
 
@@ -402,7 +467,7 @@ app.post(
   body('stock').isInt({ min: 0 }),
   body('image').optional().isString(),
   body('oldPrice').optional({ nullable: true }).isFloat({ min: 0 }),
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
 
@@ -419,42 +484,37 @@ app.post(
       oldPrice: req.body.oldPrice || null,
     };
     s.products.push(product);
-    store.save();
+    await store.save();
     res.status(201).json(product);
   }
 );
 
-app.put('/api/products/:id', requireAdmin, (req, res) => {
+app.put('/api/products/:id', requireAdmin, async (req, res) => {
   const s = store.load();
   const idx = s.products.findIndex(p => p.id === Number(req.params.id));
   if (idx === -1) return res.status(404).json({ error: 'Product not found' });
   const allowed = ['name', 'nameAr', 'category', 'price', 'stock', 'image', 'oldPrice'];
   allowed.forEach(k => { if (req.body[k] !== undefined) s.products[idx][k] = req.body[k]; });
-  store.save();
+  await store.save();
   res.json(s.products[idx]);
 });
 
-app.delete('/api/products/:id', requireAdmin, (req, res) => {
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
   const s = store.load();
   const before = s.products.length;
   s.products = s.products.filter(p => p.id !== Number(req.params.id));
   if (s.products.length === before) return res.status(404).json({ error: 'Product not found' });
-  store.save();
+  await store.save();
   res.status(204).end();
 });
 
 // ---------------------------------------------------------------------------
 // Image upload (product images from admin)
 // ---------------------------------------------------------------------------
-const storage = multer.diskStorage({
-  destination(req, file, cb) { cb(null, UPLOAD_DIR); },
-  filename(req, file, cb) {
-    const ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
-    cb(null, 'img-' + Date.now() + '-' + Math.round(Math.random() * 1e6) + ext);
-  },
-});
+// Images are handled in memory, then written to Netlify Blobs (when available)
+// or to the writable disk/temp directory in the upload route below.
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter(req, file, cb) {
     const ok = /^image\/(jpe?g|png|webp|gif)$/i.test(file.mimetype);
@@ -462,9 +522,28 @@ const upload = multer({
   },
 });
 
-app.post('/api/upload', requireAdmin, upload.single('image'), (req, res) => {
+app.post('/api/upload', requireAdmin, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  res.status(201).json({ url: '/uploads/' + req.file.filename });
+  const store = getUploadsBlob();
+  const ext = (path.extname(req.file.originalname) || '.jpg').toLowerCase();
+  const filename = 'img-' + Date.now() + '-' + Math.round(Math.random() * 1e6) + ext;
+  if (store) {
+    try {
+      await store.set(filename, req.file.buffer, { metadata: { contentType: req.file.mimetype } });
+      return res.status(201).json({ url: '/uploads/' + filename });
+    } catch (err) {
+      console.error('Failed to store image in Netlify Blobs:', err.message);
+    }
+  }
+  try {
+    const dir = uploadsDiskDir || path.join(os.tmpdir(), 'pm-store-uploads');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, filename), req.file.buffer);
+    return res.status(201).json({ url: '/uploads/' + filename });
+  } catch (err) {
+    console.error('Failed to store image:', err.message);
+    return res.status(500).json({ error: 'Failed to upload image' });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -475,7 +554,7 @@ app.post(
   body('items').isArray({ min: 1 }),
   body('shipping.email').isEmail(),
   body('shipping.name').isString().trim().isLength({ min: 1 }),
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
 
@@ -493,7 +572,7 @@ app.post(
       createdAt: new Date().toISOString(),
     };
     s.orders.push(order);
-    store.save();
+    await store.save();
     res.status(201).json(order);
   }
 );
@@ -506,12 +585,12 @@ app.put(
   '/api/orders/:id/status',
   requireAdmin,
   body('status').isIn(['pending', 'paid', 'shipped', 'cancelled']),
-  (req, res) => {
+  async (req, res) => {
     const s = store.load();
     const order = s.orders.find(o => o.id === req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     order.status = req.body.status;
-    store.save();
+    await store.save();
     res.json(order);
   }
 );
@@ -541,7 +620,7 @@ app.get('/api/settings', requireAdmin, (req, res) => {
   res.json(store.load().settings);
 });
 
-app.put('/api/settings', requireAdmin, (req, res) => {
+app.put('/api/settings', requireAdmin, async (req, res) => {
   const s = store.load();
   const incoming = req.body || {};
   ['siteName', 'tagline', 'phone', 'whatsapp', 'email', 'address', 'announcement', 'defaultCurrency'].forEach(k => {
@@ -560,7 +639,7 @@ app.put('/api/settings', requireAdmin, (req, res) => {
       }
     });
   }
-  store.save();
+  await store.save();
   res.json(s.settings);
 });
 
@@ -577,7 +656,7 @@ app.post(
   body('platform').isIn(AD_PLATFORMS),
   body('name').isString().trim().isLength({ min: 1, max: 120 }),
   body('budget').optional({ nullable: true }).isFloat({ min: 0 }),
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
 
@@ -596,28 +675,28 @@ app.post(
       createdAt: new Date().toISOString(),
     };
     s.ads.push(ad);
-    store.save();
+    await store.save();
     res.status(201).json(ad);
   }
 );
 
-app.put('/api/ads/:id', requireAdmin, (req, res) => {
+app.put('/api/ads/:id', requireAdmin, async (req, res) => {
   const s = store.load();
   const ad = s.ads.find(a => a.id === Number(req.params.id));
   if (!ad) return res.status(404).json({ error: 'Campaign not found' });
   ['name', 'platform', 'budget', 'spent', 'status', 'startDate', 'endDate', 'link', 'notes'].forEach(k => {
     if (req.body[k] !== undefined) ad[k] = req.body[k];
   });
-  store.save();
+  await store.save();
   res.json(ad);
 });
 
-app.delete('/api/ads/:id', requireAdmin, (req, res) => {
+app.delete('/api/ads/:id', requireAdmin, async (req, res) => {
   const s = store.load();
   const before = s.ads.length;
   s.ads = s.ads.filter(a => a.id !== Number(req.params.id));
   if (s.ads.length === before) return res.status(404).json({ error: 'Campaign not found' });
-  store.save();
+  await store.save();
   res.status(204).end();
 });
 
@@ -647,9 +726,21 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module && !process.env.NETLIFY) {
-  app.listen(PORT, () => {
-    console.log(`PM Store API listening on port ${PORT} (${isProd ? 'production' : 'development'})`);
-  });
+  // Standalone server (Render, Railway, Fly, local...): load persisted state
+  // from Netlify Blobs first (when env credentials are present), then seed.
+  (async () => {
+    try {
+      await store.loadFromBlob();
+    } catch (err) {
+      console.error('Failed to load data from Netlify Blobs:', err.message);
+    }
+    await seedAdmin().catch(err => {
+      console.error('Failed to seed admin:', err);
+    });
+    app.listen(PORT, () => {
+      console.log(`PM Store API listening on port ${PORT} (${isProd ? 'production' : 'development'})`);
+    });
+  })();
 }
 
 module.exports = app;

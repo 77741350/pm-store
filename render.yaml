@@ -1,3 +1,8 @@
+# Render blueprint for PM Store — free web service.
+# Create the service from the Render dashboard (New > Blueprint) using this
+# repo, then add these SECRET env vars in the service dashboard:
+#   - PM_BLOBS_TOKEN      (the Netlify account token used for blob storage)
+#   - ADMIN_PASSWORD      (first admin password; seeded only if the store is empty)
 services:
   - type: web
     name: pm-store
@@ -13,6 +18,17 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 8h
+      - key: ADMIN_EMAIL
+        value: admin@pmstore.com
+      # Netlify Blobs keeps the same production data on this host too.
+      - key: NETLIFY_BLOBS_SITE_ID
+        value: 7f9609ad-bb30-40bb-b546-f2da64eeeda3
+      - key: NETLIFY_BLOBS_REGION
+        value: us-east-2
+      # Same-origin requests do not need CORS. Add your domain here only if
+      # the frontend is ever served from a different origin.
+      - key: ALLOWED_ORIGINS
+        value: ""
       - key: LOGIN_RATE_LIMIT_WINDOW_MINUTES
         value: 15
       - key: LOGIN_RATE_LIMIT_MAX
