@@ -465,7 +465,7 @@ app.post(
   body('category').isIn(CATEGORIES),
   body('price').isFloat({ min: 0 }),
   body('stock').isInt({ min: 0 }),
-  body('image').optional().isString(),
+  body('image').optional({ nullable: true }).isString(),
   body('oldPrice').optional({ nullable: true }).isFloat({ min: 0 }),
   async (req, res) => {
     const errors = validationResult(req);
