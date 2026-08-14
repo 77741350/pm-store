@@ -72,10 +72,28 @@
 ## 5) ربط النطاق `pmstore.ye` (عندما تمتلكه)
 
 1. في لوحة Koyeb: **App → Settings → Domains → Add Domain**.
-   أضف `pmstore.ye` وأيضاً `www.pmstore.ye`.
-2. سيعطيك Koyeb سجلات DNS المطلوبة (عادة `CNAME` لـ `www` وسجل `A` للنطاق الرئيسي — أو `CNAME` مع خدمة ALIAS).
-3. اذهب إلى **مسجّل النطاق** (إذا كان `.ye` فعادة عبر TeleYemen) وأضف السجلات المعطاة في إعدادات DNS.
-4. انتظر الانتشار (دقائق إلى 24 ساعة) — سيصدر Koyeb شهادة SSL تلقائياً.
+   أضف `www.pmstore.ye` (وبعدها يمكن إضافة `pmstore.ye`).
+2. سيعرض Koyeb سجلات DNS المطلوبة — القيمة النهائية تظهر في صفحة Domains بعد إضافة النطاق (شكلها `<ORG-UUID>.cname.koyeb.app`).
+
+### السجلات الجاهزة للنسخ
+
+**لـ `www` (الأساسي — موصى به):**
+
+| الاسم (Name) | النوع (Type) | القيمة (Value) |
+|---|---|---|
+| `www` | `CNAME` | `<ORG-UUID>.cname.koyeb.app` |
+
+**للجذر `pmstore.ye`** — Koyeb لا يدعم CNAME على الجذر مباشرة؛ الحل المعتمد:
+1. أضف سجل `A` للجذر: `@` → `A` → `78.141.38.218`
+2. أضف **تحويل HTTP** من `pmstore.ye` إلى `https://www.pmstore.ye`.
+
+> ⚠️ إذا لم يدعم مسجّلك التحويل (مثل TeleYemen)، انقل DNS إلى **Cloudflare مجاناً**:
+> - `@` → `CNAME` → `www` (Cloudflare يفك CNAME على الجذر تلقائياً)
+> - `www` → `CNAME` → `<ORG-UUID>.cname.koyeb.app`
+> - قاعدة Redirect من `pmstore.ye` إلى `https://www.pmstore.ye`
+
+3. بعد إضافة السجلات اضغط **Refresh** في صفحة Domains → ستصبح **Active** ويصدر Koyeb شهادة SSL تلقائياً.
+4. انتظر الانتشار (دقائق إلى 24 ساعة).
 
 ## ملاحظات
 
