@@ -24,6 +24,10 @@ app:
           value: production
         - name: PORT
           value: "8000"
+        # JWT_SECRET must be stable across restarts, or admin/customer sessions
+        # get invalidated whenever the free instance sleeps and wakes up.
+        - name: JWT_SECRET
+          value: 93f7cfd62837dc28d5aa4bed17eb165bf1660ddd69c487b2580d4fe5a572804a
         - name: ADMIN_EMAIL
           value: admin@pmstore.com
         # Same Netlify Blobs store used by the current Netlify host — the data
