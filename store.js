@@ -131,11 +131,23 @@ function load() {
   return state;
 }
 
+// Bounded read so a stalled Blobs request can never block server startup
+// (a hanging network call before listen() would keep the host answering 503).
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('blob read timed out')), ms);
+    promise.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
 async function loadFromBlob() {
   const s = getBlobStore();
   if (!s) return;
   try {
-    const data = await s.get('data.json', { type: 'text' });
+    const data = await withTimeout(s.get('data.json', { type: 'text' }), 8000);
     if (!data) return;
     const parsed = JSON.parse(data);
     const base = defaultState();
