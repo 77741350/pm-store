@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM Store — Smart Life. Care. Home. Innovation.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body>
+
+<div class="ticker"><div class="ticker-track" id="tickerTrack">
+  <span data-i18n="tick1">FREE SHIPPING ON ORDERS OVER $50</span><span data-i18n="tick2">FAST DELIVERY ACROSS YEMEN</span><span data-i18n="tick3">SMART HOME INSTALLATION AVAILABLE</span>
+  <span data-i18n="tick1">FREE SHIPPING ON ORDERS OVER $50</span><span data-i18n="tick2">FAST DELIVERY ACROSS YEMEN</span><span data-i18n="tick3">SMART HOME INSTALLATION AVAILABLE</span>
+</div></div>
+
+<header id="siteHeader">
+  <div class="logo">
+    <svg viewBox="0 0 60 60"><path d="M30,6 L52,26 L52,26 L52,54 L8,54 L8,26 Z" fill="none" stroke="#7A1F2C" stroke-width="2.4" stroke-linejoin="round"/>
+      <rect x="24" y="16" width="4" height="4" fill="#7A1F2C"/><rect x="32" y="16" width="4" height="4" fill="#7A1F2C"/>
+      <path d="M22,32 a10,10 0 0 1 16,0" fill="none" stroke="#7A1F2C" stroke-width="1.6"/>
+      <circle cx="30" cy="36" r="1.6" fill="#7A1F2C"/>
+      <rect x="14" y="36" width="6" height="12" rx="2" fill="#7A1F2C" opacity="0.85"/>
+      <rect x="27" y="40" width="6" height="8" rx="1.5" fill="#7A1F2C" opacity="0.85"/>
+      <line x1="42" y1="30" x2="42" y2="48" stroke="#7A1F2C" stroke-width="1.6"/><path d="M37,30 L47,30 L42,24 Z" fill="none" stroke="#7A1F2C" stroke-width="1.6"/>
+    </svg>
+    <div class="logo-text">
+      <div class="pm"><span>PM</span> <b>STORE</b></div>
+      <div class="tag" data-i18n="siteTag">SMART LIFE • CARE • HOME • INNOVATION</div>
+    </div>
+  </div>
+  <nav><ul>
+    <li><a href="#products" data-i18n="navSmart">Smart Home</a></li>
+    <li><a href="#products" data-i18n="navElectronics">Electronics</a></li>
+    <li><a href="#products" data-i18n="navAppliances">Appliances</a></li>
+    <li><a href="#products" data-i18n="navCare">Personal Care</a></li>
+    <li><a href="#promo" data-i18n="navDeals">Deals</a></li>
+  </ul></nav>
+  <div class="head-icons">
+    <button class="lang-btn" id="langToggle">عربي</button>
+    <select class="cur-select" id="curSelect" aria-label="Currency"></select>
+    <button class="icon-btn" id="accountIcon" aria-label="Account"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/></svg></button>
+    <button class="icon-btn" id="wishIcon" aria-label="Wishlist"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M12 21s-7.5-4.6-10-9.3C.6 8 2.4 4.5 6 4.1c2-.2 3.7.9 5 2.9 1.3-2 3-3.1 5-2.9 3.6.4 5.4 3.9 4 7.6C19.5 16.4 12 21 12 21z"/></svg></button>
+    <button class="icon-btn" id="bagIcon" aria-label="Cart"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M6 8h12l1 13H5L6 8z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg><span class="badge" id="bagCount">0</span></button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow reveal" data-i18n="heroEyebrow">Smart Life · Care · Home · Innovation</p>
+      <h1 class="reveal rd1"><span style="color:inherit;" data-i18n="heroH1A">Smarter living</span><br><span style="color:inherit;" data-i18n="heroH1B">starts</span> <span data-i18n="heroH1C">here.</span></h1>
+      <p class="lede reveal rd2" data-i18n="heroLede">Smart home devices, everyday electronics, and personal care — chosen for reliability, backed by a real warranty, set up the way it should be.</p>
+      <div class="hero-actions reveal rd3">
+        <a href="#products" class="btn" data-i18n="shopNow">Shop now</a>
+        <a href="#pillars" class="btn btn-ghost" data-i18n="whyUs">Why PM Store</a>
+      </div>
+      <div class="hero-pills reveal rd4">
+        <div class="pill"><b>1,200+</b><span data-i18n="pillProducts">products shipped monthly</span></div>
+        <div class="pill"><b>1 yr</b><span data-i18n="pillWarranty">original products, every order</span></div>
+        <div class="pill"><b>24/7</b><span data-i18n="pillCare">customer care</span></div>
+      </div>
+    </div>
+    <div class="hero-art reveal rd2">
+      <div class="hero-panel cut">
+        <svg viewBox="0 0 300 260" fill="none">
+          <!-- Phone -->
+          <rect class="device-1" x="30" y="140" width="46" height="90" rx="8" fill="#fff" opacity="0.95"/>
+          <circle class="accent-1" cx="53" cy="160" r="4" fill="#7A1F2C"/>
+
+          <!-- Tablet -->
+          <rect class="device-2" x="110" y="100" width="60" height="130" rx="10" fill="#fff" opacity="0.95"/>
+          <circle class="accent-2" cx="140" cy="200" r="14" fill="none" stroke="#7A1F2C" stroke-width="2.4"/>
+          <path class="lines" d="M118,140 h44 M118,155 h44 M118,170 h30" stroke="#7A1F2C" stroke-width="2"/>
+
+          <!-- Headphones -->
+          <rect class="device-3" x="200" y="150" width="70" height="20" rx="10" fill="#fff" opacity="0.95"/>
+          <path class="headphone-arc" d="M215,150 v-40 a15,15 0 0 1 30,0 v40" fill="none" stroke="#fff" stroke-width="8" opacity="0.95"/>
+          <path class="speaker-arc" d="M60,120 a24,24 0 0 1 40,0" stroke="#fff" stroke-width="2.4" fill="none" opacity="0.8"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cat-strip">
+  <div class="wrap">
+    <div class="cat-row" id="catRow"></div>
+  </div>
+</section>
+
+<section class="wallets">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div><p class="eyebrow" data-i18n="payEyebrow">Payment methods</p><h2 data-i18n="payTitle">Pay with Yemeni e-wallets.</h2></div>
+    </div>
+    <div class="wallet-row" id="walletRow"></div>
+  </div>
+</section>
+
+<section class="products" id="products">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div><p class="eyebrow" data-i18n="featured">Featured</p><h2 data-i18n="picks">This week's picks.</h2></div>
+      <div class="search-wrap"><input type="search" id="productSearch" placeholder="Search products…" data-i18n-ph="searchPh"></div>
+    </div>
+    <div class="product-grid" id="productGrid"></div>
+  </div>
+</section>
+
+<section class="promo" id="promo">
+  <div class="wrap">
+    <div class="promo-panel cut reveal">
+      <div>
+        <p class="eyebrow" data-i18n="newArrival">New arrival</p>
+        <h2 data-i18n="promoH">Smart security cameras — up to 25% off.</h2>
+        <p data-i18n="promoP">1080p night vision, two-way audio, and a companion app that actually works. Ships free.</p>
+        <div class="promo-cta"><a href="#products" class="btn" data-i18n="shopSale">Shop the sale</a></div>
+      </div>
+      <div class="promo-icon">
+        <svg viewBox="0 0 150 150" fill="none"><rect x="35" y="60" width="80" height="55" rx="27" fill="#fff" opacity="0.15"/><circle cx="75" cy="87" r="26" fill="#fff" opacity="0.9"/><circle cx="75" cy="87" r="12" fill="#7A1F2C"/><rect x="55" y="30" width="40" height="18" rx="9" fill="#fff" opacity="0.9"/></svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pillars" id="pillars">
+  <div class="wrap">
+    <div class="section-head reveal"><div><p class="eyebrow" data-i18n="whyEyebrow">Why PM Store</p><h2 data-i18n="whyTitle">The four things we don't compromise on.</h2></div></div>
+    <div class="pillar-grid">
+      <div class="pillar-card reveal"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg><h3 data-i18n="p1h">Smart Life</h3><p data-i18n="p1p">Devices that work together — no separate app for every gadget.</p></div>
+      <div class="pillar-card reveal rd1"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M12 21s-7.5-4.6-10-9.3C.6 8 2.4 4.5 6 4.1c2-.2 3.7.9 5 2.9 1.3-2 3-3.1 5-2.9 3.6.4 5.4 3.9 4 7.6C19.5 16.4 12 21 12 21z"/></svg><h3 data-i18n="p2h">Care</h3><p data-i18n="p2p">Support that picks up the phone.</p></div>
+      <div class="pillar-card reveal rd2"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg><h3 data-i18n="p3h">Home</h3><p data-i18n="p3p">Set up once — installation help for anything that mounts or wires in.</p></div>
+      <div class="pillar-card reveal rd3"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><h3 data-i18n="p4h">Innovation</h3><p data-i18n="p4p">New arrivals every month, tested before they hit the shelf.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="testimonial">
+  <div class="wrap">
+    <p class="eyebrow reveal" style="justify-content:center;" data-i18n="customers">Customers</p>
+    <blockquote class="reveal rd1" id="quoteText">"Ordered a security camera on Tuesday, had it mounted and working by Thursday evening — support walked me through the app setup on the phone."</blockquote>
+    <p class="t-author" id="quoteAuthor">— Rafiq H., Sana'a</p>
+    <div class="t-nav" id="quoteDots"></div>
+  </div>
+</section>
+
+<section class="social-strip">
+  <div class="wrap">
+    <div class="section-head reveal"><div><p class="eyebrow" data-i18n="followEyebrow">Follow us</p><h2 data-i18n="followTitle">Find us everywhere.</h2></div></div>
+    <div class="social-row" id="socialRow"></div>
+  </div>
+</section>
+
+<section class="newsletter">
+  <div class="wrap">
+    <div class="news-panel reveal">
+      <h2 data-i18n="newsH">Get the first look at new arrivals and monthly deals.</h2>
+      <form class="news-form" id="newsForm">
+        <input type="email" placeholder="Your email" data-i18n-ph="newsPh" required>
+        <button type="submit" data-i18n="subscribe">Subscribe →</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="logo" style="margin-bottom:14px;">
+          <svg viewBox="0 0 60 60" width="34"><path d="M30,6 L52,26 L52,54 L8,54 L8,26 Z" fill="none" stroke="#7A1F2C" stroke-width="2.4" stroke-linejoin="round"/></svg>
+          <div class="logo-text"><div class="pm"><span>PM</span> <b>STORE</b></div></div>
+        </div>
+        <p id="footAddress">123 Smart Life Avenue, Dhaka, Bangladesh</p>
+        <div class="foot-social" id="footSocial"></div>
+      </div>
+      <div><h4 data-i18n="footShop">Shop</h4><a href="#products" data-i18n="navSmart">Smart Home</a><a href="#products" data-i18n="navElectronics">Electronics</a><a href="#products" data-i18n="navAppliances">Appliances</a><a href="#products" data-i18n="navCare">Personal Care</a></div>
+      <div><h4 data-i18n="footWallets">Payments</h4><div id="footWallets"></div></div>
+      <div><h4 data-i18n="footContact">Contact</h4><a id="footPhone" href="tel:+967775201234">+967 775 201 234</a><a id="footEmail" href="mailto:info@pmstore.com">info@pmstore.com</a><a href="#" data-i18n="footSite">www.pmstore.com</a></div>
+    </div>
+    <div class="foot-bottom"><span>© 2026 PM Store</span><span data-i18n="footDesign">Design concept — sample site</span></div>
+  </div>
+</footer>
+
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head"><h3 data-i18n="yourCart">Your cart</h3><button class="drawer-close" id="drawerClose">&times;</button></div>
+  <div class="drawer-items" id="drawerItems"></div>
+  <div class="drawer-foot">
+    <div class="subtotal"><span data-i18n="subtotal">Subtotal</span><span id="subtotal">-</span></div>
+    <button class="btn" id="openCheckout" data-i18n="checkout">Checkout</button>
+  </div>
+</aside>
+
+<div class="modal-overlay" id="authOverlay">
+  <div class="modal">
+    <button class="modal-close" id="authClose">&times;</button>
+    <div id="authBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="checkoutOverlay">
+  <div class="modal">
+    <button class="modal-close" id="checkoutClose">&times;</button>
+    <div id="checkoutBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>window.API_BASE='https://pmstore-ye.netlify.app';</script>
+<script src="assets/js/error-banner.js"></script>
+<script src="assets/js/index.js"></script>
+</body>
+</html>

@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM Store — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --maroon:#7A1F2C; --maroon-deep:#4E1119; --maroon-bright:#A8283B;
+    --gray:#58595B; --gray-light:#EDEBEA; --ink:#232323; --paper:#FFFFFF; --bg:#F6F5F3;
+    --line:rgba(35,35,35,0.12); --green:#2E7D4F; --amber:#B8842E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px;}
+  [dir="rtl"] body{text-align:right;}
+  h1,h2,h3{font-family:'Poppins',sans-serif; font-weight:700; margin:0;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:'Inter',sans-serif; cursor:pointer;}
+  input, select, textarea{font-family:'Inter',sans-serif;}
+
+  /* ---------- LOGIN GATE ---------- */
+  #loginGate{position:fixed; inset:0; background:var(--maroon-deep); display:flex; align-items:center; justify-content:center; z-index:500;}
+  .login-card{background:var(--paper); width:min(380px,90vw); padding:40px 34px; text-align:center;}
+  .login-card svg{width:44px; height:44px; margin-bottom:12px;}
+  .login-card h2{font-size:1.3rem;}
+  .login-card p.note{color:var(--gray); font-size:0.82rem; margin:10px 0 24px;}
+  .login-card .field{text-align:left; margin-bottom:14px;}
+  .login-card label{font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray); display:block; margin-bottom:5px;}
+  .login-card input{width:100%; border:1px solid var(--line); padding:10px 12px; font-size:0.9rem;}
+  .login-card input:focus{outline:none; border-color:var(--maroon);}
+  .login-card button{width:100%; background:var(--maroon); color:#fff; border:none; padding:12px; font-weight:600; font-size:0.9rem; margin-top:8px;}
+  .login-card button:hover{background:var(--maroon-deep);}
+  .login-lang{position:absolute; top:18px; left:18px; background:none; border:1px solid rgba(255,255,255,0.4); color:#fff; padding:7px 14px; font-size:0.78rem; font-weight:700;}
+
+  /* ---------- SHELL ---------- */
+  #app{display:none; min-height:100vh; grid-template-columns:230px 1fr;}
+  #app.show{display:grid;}
+  aside.sidebar{background:var(--maroon-deep); color:#fff; padding:26px 18px; display:flex; flex-direction:column;}
+  .side-logo{display:flex; align-items:center; gap:10px; margin-bottom:34px; padding:0 6px;}
+  .side-logo svg{width:28px; height:28px;}
+  .side-logo b{font-family:'Poppins',sans-serif; font-size:1.05rem;}
+  .side-nav{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:4px;}
+  .side-nav button{
+    display:flex; align-items:center; gap:12px; width:100%; background:none; border:none; color:rgba(255,255,255,0.7);
+    padding:11px 12px; font-size:0.87rem; text-align:left; border-radius:4px; transition:background 0.25s ease, color 0.25s ease;
+  }
+  [dir="rtl"] .side-nav button{text-align:right;}
+  .side-nav button svg{width:17px; height:17px; stroke:currentColor; flex-shrink:0;}
+  .side-nav button:hover{background:rgba(255,255,255,0.06); color:#fff;}
+  .side-nav button.active{background:var(--maroon-bright); color:#fff;}
+  .side-foot{margin-top:auto; padding-top:20px; border-top:1px solid rgba(255,255,255,0.14); font-size:0.78rem; color:rgba(255,255,255,0.55);}
+  .side-foot button{background:none; border:none; color:rgba(255,255,255,0.7); font-size:0.8rem; padding:0; margin-top:8px;}
+  .side-foot button:hover{color:#fff;}
+  .side-lang{background:none; border:1px solid rgba(255,255,255,0.35); color:#fff; font-size:0.75rem; font-weight:700; padding:6px 12px; margin-bottom:14px; align-self:flex-start;}
+
+  main{padding:30px 40px 60px;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; flex-wrap:wrap; gap:12px;}
+  .topbar h1{font-size:1.5rem;}
+  .topbar .who{font-size:0.85rem; color:var(--gray);}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-bottom:34px;}
+  .stat-card{background:var(--paper); border:1px solid var(--line); padding:22px;}
+  .stat-card .label{font-size:0.75rem; color:var(--gray); text-transform:uppercase; letter-spacing:0.05em;}
+  .stat-card .value{font-family:'Poppins',sans-serif; font-size:1.5rem; font-weight:700; margin-top:8px; word-break:break-word;}
+  .stat-card .delta{font-size:0.78rem; margin-top:6px;}
+  .delta.up{color:var(--green);} .delta.down{color:var(--maroon);}
+
+  .panel{background:var(--paper); border:1px solid var(--line); padding:24px; margin-bottom:24px;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;}
+  .panel-head h3{font-size:1.05rem;}
+  .btn{background:var(--maroon); color:#fff; border:none; padding:9px 16px; font-size:0.82rem; font-weight:600;}
+  .btn:hover{background:var(--maroon-deep);}
+  .btn-ghost{background:none; border:1px solid var(--line); color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--maroon);}
+  .btn-sm{padding:6px 12px; font-size:0.76rem;}
+  .btn-danger{background:#B3261E;}
+
+  table{width:100%; border-collapse:collapse; font-size:0.86rem;}
+  thead th{text-align:left; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--gray); padding:10px 8px; border-bottom:1px solid var(--line);}
+  tbody td{padding:12px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tbody tr:hover{background:var(--bg);}
+  .row-actions button{background:none; border:none; font-size:0.78rem; color:var(--maroon); margin-right:10px; padding:0;}
+  .row-actions button:hover{text-decoration:underline;}
+  .row-actions button.del{color:#B3261E;}
+  .status-pill{padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:600;}
+  .status-pill.paid{background:#E4F1E9; color:var(--green);}
+  .status-pill.pending{background:#F6EBD8; color:var(--amber);}
+  .status-pill.low{background:#FBE7E9; color:var(--maroon);}
+  .status-pill.ok{background:#E4F1E9; color:var(--green);}
+  .status-pill.active{background:#E4F1E9; color:var(--green);}
+  .status-pill.paused{background:#F6EBD8; color:var(--amber);}
+  .status-pill.completed{background:var(--gray-light); color:var(--gray);}
+  .status-pill.cancelled{background:#FBE7E9; color:var(--maroon);}
+
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;}
+  .form-grid-3{grid-template-columns:repeat(3,1fr);}
+  .form-field{display:flex; flex-direction:column; gap:5px;}
+  .form-field label{font-size:0.74rem; color:var(--gray); text-transform:uppercase; letter-spacing:0.04em;}
+  .form-field input, .form-field select, .form-field textarea{border:1px solid var(--line); padding:9px 10px; font-size:0.86rem;}
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus{outline:none; border-color:var(--maroon);}
+  .form-field textarea{resize:vertical; min-height:56px;}
+
+  .setting-row{display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid var(--line);}
+  .setting-row:last-child{border-bottom:none;}
+  .setting-row .info h4{font-size:0.92rem; font-weight:600;}
+  .setting-row .info p{font-size:0.8rem; color:var(--gray); margin-top:3px;}
+  .toggle{width:42px; height:24px; background:var(--gray-light); border-radius:20px; position:relative; cursor:pointer; border:none; flex-shrink:0;}
+  .toggle::after{content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform 0.25s ease; box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+  .toggle.on{background:var(--green);}
+  .toggle.on::after{transform:translateX(18px);}
+  [dir="rtl"] .toggle.on::after{transform:translateX(-18px);}
+
+  .wallet-edit{border:1px solid var(--line); padding:14px; margin-bottom:12px; background:var(--bg);}
+  .wallet-edit .head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .wallet-edit .head b{font-size:0.86rem;}
+  .mini-row{display:grid; grid-template-columns:2fr 2fr 2fr 1fr auto; gap:10px; align-items:end; margin-bottom:8px;}
+  .mini-row .form-field input{padding:7px 8px; font-size:0.82rem;}
+  .chk-row{display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--gray);}
+
+  .platform-tag{display:inline-block; padding:3px 9px; border-radius:20px; font-size:0.72rem; font-weight:600; background:var(--gray-light); color:var(--ink);}
+  .platform-tag.fb{background:#E8F0FE; color:#1877F2;}
+  .platform-tag.ig{background:#FDE9F0; color:#E1306C;}
+  .platform-tag.tiktok{background:#222; color:#fff;}
+  .platform-tag.wa{background:#E4F1E9; color:#25D366;}
+  .platform-tag.yt{background:#FBE7E9; color:#FF0000;}
+  .platform-tag.tele{background:#E3F2FD; color:#0088CC;}
+
+  .toast{position:fixed; bottom:24px; right:24px; background:var(--ink); color:#fff; padding:12px 20px; font-size:0.85rem; border-radius:4px; opacity:0; transform:translateY(10px); transition:opacity 0.3s ease, transform 0.3s ease; z-index:600;}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(35,35,35,0.5); z-index:400; opacity:0; visibility:hidden; transition:opacity 0.3s ease, visibility 0.3s ease; display:flex; align-items:center; justify-content:center;}
+  .modal-overlay.open{opacity:1; visibility:visible;}
+  .modal{background:#fff; width:min(560px,92vw); padding:30px; max-height:88vh; overflow-y:auto;}
+  .modal h3{font-size:1.15rem; margin-bottom:18px;}
+  .modal-close-row{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+
+  .img-preview{width:64px; height:64px; object-fit:cover; border-radius:6px; border:1px solid var(--line);}
+  .hint{font-size:0.76rem; color:var(--gray); margin-top:4px;}
+
+  @media (max-width:900px){
+    #app.show{grid-template-columns:1fr;}
+    aside.sidebar{display:none;}
+    .stat-grid{grid-template-columns:1fr 1fr;}
+    .form-grid, .form-grid-3{grid-template-columns:1fr;}
+    .mini-row{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <button class="login-lang" id="loginLang">عربي</button>
+  <div class="login-card">
+    <svg viewBox="0 0 60 60"><path d="M30,6 L52,26 L52,54 L8,54 L8,26 Z" fill="none" stroke="#7A1F2C" stroke-width="2.4" stroke-linejoin="round"/></svg>
+    <h2>PM Store Admin</h2>
+    <p class="note" id="loginNote">Sign in to manage products, orders, staff, ads, and store settings.</p>
+    <form id="loginForm">
+      <div class="field"><label id="lblEmail">Email</label><input type="email" required placeholder="you@pmstore.com"></div>
+      <div class="field"><label id="lblPass">Password</label><input type="password" required placeholder="••••••••"></div>
+      <button type="submit" id="loginBtn">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<div id="app">
+  <aside class="sidebar">
+    <div class="side-logo">
+      <svg viewBox="0 0 60 60"><path d="M30,6 L52,26 L52,54 L8,54 L8,26 Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>
+      <b>PM Store</b>
+    </div>
+    <button class="side-lang" id="sideLang">عربي</button>
+    <ul class="side-nav">
+      <li><button class="active" data-view="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg><span data-i18n="navDash">Dashboard</span></button></li>
+      <li><button data-view="products"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg><span data-i18n="navProducts">Products</span></button></li>
+      <li><button data-view="orders"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M6 8h12l1 13H5L6 8z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg><span data-i18n="navOrders">Orders</span></button></li>
+      <li><button data-view="customers"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span data-i18n="navCustomers">Customers</span></button></li>
+      <li><button data-view="staff"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span data-i18n="navStaff">Staff</span></button></li>
+      <li><button data-view="ads"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span data-i18n="navAds">Ads</span></button></li>
+      <li><button data-view="security"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg><span data-i18n="navSecurity">Security</span></button></li>
+      <li><button data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-i18n="navSettings">Settings</span></button></li>
+    </ul>
+    <div class="side-foot">
+      <span data-i18n="signedInAs">Signed in as</span><br><span id="whoEmail" class="mono"></span>
+      <button id="logoutBtn" data-i18n="signOut">Sign out</button>
+    </div>
+  </aside>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="topbar"><h1 data-i18n="tDash">Dashboard</h1><span class="who" data-i18n="tUpdated">Live data from the store</span></div>
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="recentOrders">Recent orders</h3><button class="btn-ghost btn" data-goto="orders" data-i18n="viewAll">View all</button></div>
+        <table><thead><tr><th data-i18n="thOrder">Order</th><th data-i18n="thCustomer">Customer</th><th data-i18n="thItems">Items</th><th data-i18n="thTotal">Total</th><th data-i18n="thPay">Payment</th><th data-i18n="thStatus">Status</th></tr></thead><tbody id="dashOrdersBody"></tbody></table>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="lowStock">Low stock</h3><button class="btn-ghost btn" data-goto="products" data-i18n="manageProducts">Manage products</button></div>
+        <table><thead><tr><th data-i18n="thProduct">Product</th><th>SKU</th><th data-i18n="thStock">Stock</th><th data-i18n="thStatus">Status</th></tr></thead><tbody id="dashStockBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="view" id="view-products">
+      <div class="topbar"><h1 data-i18n="tProducts">Products</h1><button class="btn" id="addProductBtn" data-i18n="addProduct">+ Add product</button></div>
+      <div class="panel">
+        <table>
+          <thead><tr><th data-i18n="thProduct">Product</th><th data-i18n="thCategory">Category</th><th data-i18n="thPrice">Price (YER)</th><th data-i18n="thStock">Stock</th><th data-i18n="thStatus">Status</th><th></th></tr></thead>
+          <tbody id="productsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="view" id="view-orders">
+      <div class="topbar"><h1 data-i18n="tOrders">Orders</h1><button class="btn-ghost btn" id="refreshOrdersBtn" data-i18n="refresh">Refresh</button></div>
+      <div class="panel">
+        <table>
+          <thead><tr><th data-i18n="thOrder">Order</th><th data-i18n="thCustomer">Customer</th><th data-i18n="thDate">Date</th><th data-i18n="thItems">Items</th><th data-i18n="thTotal">Total</th><th data-i18n="thPay">Payment</th><th data-i18n="thStatus">Status</th></tr></thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div class="view" id="view-customers">
+      <div class="topbar"><h1 data-i18n="tCustomers">Customers</h1><button class="btn-ghost btn" id="refreshCustomersBtn" data-i18n="refresh">Refresh</button></div>
+      <div class="panel">
+        <table>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thEmail">Email</th><th data-i18n="thOrdersCount">Orders</th><th data-i18n="thJoined">Joined</th></tr></thead>
+          <tbody id="customersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- STAFF -->
+    <div class="view" id="view-staff">
+      <div class="topbar"><h1 data-i18n="tStaff">Staff</h1><button class="btn" id="addStaffBtn" data-i18n="addStaff">+ Add staff member</button></div>
+      <div class="panel">
+        <table>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thEmail">Email</th><th data-i18n="th2fa">2FA</th><th data-i18n="thJoined">Joined</th><th></th></tr></thead>
+          <tbody id="staffBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ADS -->
+    <div class="view" id="view-ads">
+      <div class="topbar"><h1 data-i18n="tAds">Ad campaigns</h1><button class="btn" id="addAdBtn" data-i18n="addCampaign">+ New campaign</button></div>
+      <div class="stat-grid" id="adStatGrid"></div>
+      <div class="panel">
+        <table>
+          <thead><tr><th data-i18n="thPlatform">Platform</th><th data-i18n="thName">Campaign</th><th data-i18n="thBudget">Budget</th><th data-i18n="thSpent">Spent</th><th data-i18n="thRemaining">Remaining</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th><th></th></tr></thead>
+          <tbody id="adsBody"></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="adFundH">Boost your ads</h3></div>
+        <div class="form-grid" id="adLinks"></div>
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="view" id="view-security">
+      <div class="topbar"><h1 data-i18n="tSecurity">Security</h1></div>
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="adminPassword">My password</h3></div>
+        <form id="pwForm">
+          <div class="form-grid">
+            <div class="form-field"><label data-i18n="currentPassword">Current password</label><input type="password" required></div>
+            <div class="form-field"></div>
+            <div class="form-field"><label data-i18n="newPassword">New password</label><input type="password" required></div>
+            <div class="form-field"><label data-i18n="confirmPassword">Confirm new password</label><input type="password" required></div>
+          </div>
+          <button type="submit" class="btn" data-i18n="updatePassword">Update password</button>
+        </form>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="accountProtection">Account protection</h3></div>
+        <div class="setting-row">
+          <div class="info"><h4 data-i18n="twofaTitle">Two-factor authentication</h4><p data-i18n="twofaDesc">Require a one-time code at sign-in, in addition to the password.</p></div>
+          <button class="toggle" id="toggle2fa"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div class="topbar"><h1 data-i18n="tSettings">Settings</h1><button class="btn" id="saveSettingsBtn" data-i18n="saveAll">Save all changes</button></div>
+
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="siteInfo">Store info</h3></div>
+        <div class="form-grid">
+          <div class="form-field"><label data-i18n="siteName">Store name</label><input id="set-name"></div>
+          <div class="form-field"><label data-i18n="tagline">Tagline</label><input id="set-tagline"></div>
+          <div class="form-field"><label data-i18n="phone">Phone</label><input id="set-phone" placeholder="+967775201234"></div>
+          <div class="form-field"><label data-i18n="whatsappNum">WhatsApp number (no +)</label><input id="set-whatsapp" placeholder="967775201234"></div>
+          <div class="form-field"><label data-i18n="emailAddr">Email</label><input id="set-email"></div>
+          <div class="form-field"><label data-i18n="address">Address</label><input id="set-address"></div>
+          <div class="form-field" style="grid-column:1/-1;"><label data-i18n="announcement">Announcement (shown in the top ticker)</label><textarea id="set-announcement"></textarea></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="socialLinks">Social media links</h3><span class="hint" data-i18n="socialHint">Shown to customers in the storefront.</span></div>
+        <div class="form-grid">
+          <div class="form-field"><label>Facebook / Meta</label><input id="set-social-fb" placeholder="https://facebook.com/…"></div>
+          <div class="form-field"><label>Instagram</label><input id="set-social-ig" placeholder="https://instagram.com/…"></div>
+          <div class="form-field"><label>TikTok</label><input id="set-social-tt" placeholder="https://tiktok.com/…"></div>
+          <div class="form-field"><label>WhatsApp</label><input id="set-social-wa" placeholder="https://wa.me/967775201234"></div>
+          <div class="form-field"><label>YouTube</label><input id="set-social-yt" placeholder="https://youtube.com/…"></div>
+          <div class="form-field"><label>Telegram</label><input id="set-social-tg" placeholder="https://t.me/…"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="walletsH">Yemeni e-wallets</h3><button class="btn-ghost btn" id="addWalletBtn" data-i18n="addWallet">+ Add wallet</button></div>
+        <div id="walletsEditor"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3 data-i18n="currenciesH">Currencies</h3><span class="hint" data-i18n="currenciesHint">Rates = how many YER equal 1 unit of that currency. Product prices are stored in YER.</span></div>
+        <div class="form-grid-3 form-grid" id="currenciesEditor"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal-overlay" id="productModalOverlay">
+  <div class="modal">
+    <h3 id="productModalTitle">Add product</h3>
+    <form id="productForm">
+      <div class="form-grid">
+        <div class="form-field"><label data-i18n="nameEn">Name (English)</label><input id="pf-name" required></div>
+        <div class="form-field"><label data-i18n="nameAr">Name (Arabic)</label><input id="pf-nameAr"></div>
+        <div class="form-field"><label data-i18n="category">Category</label>
+          <select id="pf-cat"><option value="smart">Smart Home</option><option value="electronics">Electronics</option><option value="appliances">Appliances</option><option value="care">Personal Care</option></select>
+        </div>
+        <div class="form-field"><label data-i18n="priceYer">Price (YER)</label><input id="pf-price" type="number" min="0" step="1" required></div>
+        <div class="form-field"><label data-i18n="oldPrice">Old price (YER, optional)</label><input id="pf-old" type="number" min="0" step="1"></div>
+        <div class="form-field"><label data-i18n="stock">Stock</label><input id="pf-stock" type="number" min="0" required></div>
+        <div class="form-field" style="grid-column:1/-1;"><label data-i18n="image">Product image</label>
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <input type="file" id="pf-file" accept="image/*" style="border:1px solid var(--line); padding:8px; font-size:0.82rem;">
+            <img id="pf-preview" class="img-preview" style="display:none;" alt="">
+            <input id="pf-image" type="url" placeholder="https://example.com/image.jpg" style="flex:1;">
+          </div>
+          <span class="hint" data-i18n="imgHint">Upload a file or paste an image URL.</span>
+        </div>
+      </div>
+      <div class="modal-close-row">
+        <button type="button" class="btn-ghost btn" id="productModalCancel" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn" data-i18n="saveProduct">Save product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- STAFF MODAL -->
+<div class="modal-overlay" id="staffModalOverlay">
+  <div class="modal">
+    <h3 id="staffModalTitle">Add staff member</h3>
+    <form id="staffForm">
+      <div class="form-grid">
+        <div class="form-field"><label data-i18n="thName">Name</label><input id="sf-name" required></div>
+        <div class="form-field"><label data-i18n="thEmail">Email</label><input id="sf-email" type="email" required></div>
+        <div class="form-field" style="grid-column:1/-1;"><label data-i18n="password">Password</label><input id="sf-pass" type="password" required></div>
+      </div>
+      <div class="modal-close-row">
+        <button type="button" class="btn-ghost btn" id="staffModalCancel" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn" data-i18n="saveStaff">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ADS MODAL -->
+<div class="modal-overlay" id="adModalOverlay">
+  <div class="modal">
+    <h3 id="adModalTitle">New campaign</h3>
+    <form id="adForm">
+      <div class="form-grid">
+        <div class="form-field"><label data-i18n="thName">Campaign name</label><input id="af-name" required></div>
+        <div class="form-field"><label data-i18n="thPlatform">Platform</label>
+          <select id="af-platform">
+            <option value="facebook">Facebook / Meta</option>
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="youtube">YouTube</option>
+            <option value="telegram">Telegram</option>
+          </select>
+        </div>
+        <div class="form-field"><label data-i18n="budget">Budget (YER)</label><input id="af-budget" type="number" min="0" step="1" required></div>
+        <div class="form-field"><label data-i18n="spent">Spent so far (YER)</label><input id="af-spent" type="number" min="0" step="1"></div>
+        <div class="form-field"><label data-i18n="thStatus">Status</label>
+          <select id="af-status"><option value="active">active</option><option value="paused">paused</option><option value="completed">completed</option></select>
+        </div>
+        <div class="form-field"><label data-i18n="startDate">Start date</label><input id="af-start" type="date"></div>
+        <div class="form-field"><label data-i18n="endDate">End date</label><input id="af-end" type="date"></div>
+        <div class="form-field"><label data-i18n="results">Results / notes</label><input id="af-notes" placeholder="clicks, orders, ROAS…"></div>
+        <div class="form-field" style="grid-column:1/-1;"><label data-i18n="adLink">Ad link (optional)</label><input id="af-link" placeholder="https://…"></div>
+      </div>
+      <div class="modal-close-row">
+        <button type="button" class="btn-ghost btn" id="adModalCancel" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn" data-i18n="saveCampaign">Save campaign</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // --- on-screen error reporter (separate block so it runs even if the main script fails) ---
+  (function () {
+    function show(msg) {
+      try {
+        var el = document.getElementById('errBanner');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'errBanner';
+          el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#b00020;color:#fff;font:12px/1.5 monospace;padding:8px 12px;z-index:99999;white-space:pre-wrap;direction:ltr;text-align:left;';
+          document.body.appendChild(el);
+        }
+        el.textContent = 'JS Error: ' + msg;
+      } catch (e) { }
+    }
+    window.addEventListener('error', function (ev) {
+      show((ev && ev.message) + '  [line ' + (ev && ev.lineno) + ']');
+    });
+    window.addEventListener('unhandledrejection', function (ev) {
+      var r = ev && ev.reason;
+      show('Promise Error: ' + (r && r.message ? r.message : String(r)));
+    });
+  })();
+</script>
+<script>
+  // --- API ---
+  const API_BASE = window.API_BASE || 'https://pmstore-ye.netlify.app';
+  const api = (path) => API_BASE + '/api' + path;
+  const absAsset = (u) => u && !/^https?:/.test(u) ? API_BASE + u : u;
+  let authToken = null;
+  let adminEmail = '';
+  // Safe storage access: blocked localStorage (private mode, some browsers) must not break the page
+  function safeStorage(){
+    try {
+      var ls = window.localStorage;
+      var p = { get: function(k){ try { return ls.getItem(k); } catch(e){ return null; } },
+                set: function(k,v){ try { ls.setItem(k,v); } catch(e){} },
+                del: function(k){ try { ls.removeItem(k); } catch(e){} } };
+      return p;
+    } catch (e) {
+      return { get: function(){ return null; }, set: function(){}, del: function(){} };
+    }
+  }
+  var store = safeStorage();
+
+  // --- i18n (lightweight) ---
+  const A18N = {
+    en: {
+      navDash:'Dashboard', navProducts:'Products', navOrders:'Orders', navCustomers:'Customers', navStaff:'Staff',
+      navAds:'Ads', navSecurity:'Security', navSettings:'Settings',
+      signedInAs:'Signed in as', signOut:'Sign out',
+      loginNote:'Sign in to manage products, orders, staff, ads, and store settings.',
+      tDash:'Dashboard', tUpdated:'Live data from the store', recentOrders:'Recent orders', viewAll:'View all',
+      thOrder:'Order', thCustomer:'Customer', thItems:'Items', thTotal:'Total', thPay:'Payment', thStatus:'Status',
+      lowStock:'Low stock', manageProducts:'Manage products', thProduct:'Product', thStock:'Stock',
+      tProducts:'Products', addProduct:'+ Add product', thCategory:'Category', thPrice:'Price (YER)',
+      tOrders:'Orders', refresh:'Refresh', thDate:'Date',
+      tCustomers:'Customers', thName:'Name', thEmail:'Email', thOrdersCount:'Orders', thJoined:'Joined',
+      tStaff:'Staff', addStaff:'+ Add staff member', th2fa:'2FA',
+      tAds:'Ad campaigns', addCampaign:'+ New campaign', thPlatform:'Platform', thName:'Campaign',
+      thBudget:'Budget', thSpent:'Spent', thRemaining:'Remaining', thAction:'Action', adFundH:'Boost your ads',
+      tSecurity:'Security', adminPassword:'My password', currentPassword:'Current password', newPassword:'New password',
+      confirmPassword:'Confirm new password', updatePassword:'Update password', accountProtection:'Account protection',
+      twofaTitle:'Two-factor authentication', twofaDesc:'Require a one-time code at sign-in, in addition to the password.',
+      tSettings:'Settings', saveAll:'Save all changes', siteInfo:'Store info', siteName:'Store name', tagline:'Tagline',
+      phone:'Phone', whatsappNum:'WhatsApp number (no +)', emailAddr:'Email', address:'Address', announcement:'Announcement (shown in the top ticker)',
+      socialLinks:'Social media links', socialHint:'Shown to customers in the storefront.',
+      walletsH:'Yemeni e-wallets', addWallet:'+ Add wallet', currenciesH:'Currencies',
+      currenciesHint:'Rates = how many YER equal 1 unit of that currency. Product prices are stored in YER.',
+      nameEn:'Name (English)', nameAr:'Name (Arabic)', category:'Category', priceYer:'Price (YER)',
+      oldPrice:'Old price (YER, optional)', stock:'Stock', image:'Product image', imgHint:'Upload a file or paste an image URL.',
+      cancel:'Cancel', saveProduct:'Save product', saveStaff:'Save', password:'Password',
+      budget:'Budget (YER)', spent:'Spent so far (YER)', startDate:'Start date', endDate:'End date',
+      results:'Results / notes', adLink:'Ad link (optional)', saveCampaign:'Save campaign',
+      addEdit:'Edit', del:'Delete', save:'Save', fund:'Open ads manager', waChat:'Chat on WhatsApp',
+      walletNumber:'Number', walletOwner:'Owner', walletType:'Type', walletEnabled:'Enabled', remove:'Remove',
+      curRate:'Rate (1 unit = YER)', curSymbol:'Symbol', curLabelEn:'Label (EN)', curLabelAr:'Label (AR)',
+      emptyOrders:'No orders yet.', emptyCustomers:'No customers yet.', emptyStaff:'No staff.',
+      emptyAds:'No campaigns yet.', low:'Low stock', inStock:'In stock',
+    },
+    ar: {
+      navDash:'الرئيسية', navProducts:'المنتجات', navOrders:'الطلبات', navCustomers:'العملاء', navStaff:'المسؤولون',
+      navAds:'الإعلانات', navSecurity:'الأمان', navSettings:'الإعدادات',
+      signedInAs:'تم تسجيل دخولك باسم', signOut:'تسجيل الخروج',
+      loginNote:'سجّل الدخول لإدارة المنتجات والطلبات والمسؤولين والإعلانات وإعدادات المتجر.',
+      tDash:'الرئيسية', tUpdated:'بيانات مباشرة من المتجر', recentOrders:'أحدث الطلبات', viewAll:'عرض الكل',
+      thOrder:'الطلب', thCustomer:'العميل', thItems:'العناصر', thTotal:'الإجمالي', thPay:'الدفع', thStatus:'الحالة',
+      lowStock:'مخزون منخفض', manageProducts:'إدارة المنتجات', thProduct:'المنتج', thStock:'المخزون',
+      tProducts:'المنتجات', addProduct:'+ إضافة منتج', thCategory:'الفئة', thPrice:'السعر (ريال)',
+      tOrders:'الطلبات', refresh:'تحديث', thDate:'التاريخ',
+      tCustomers:'العملاء', thName:'الاسم', thEmail:'البريد', thOrdersCount:'الطلبات', thJoined:'تاريخ الانضمام',
+      tStaff:'المسؤولون', addStaff:'+ إضافة مسؤول', th2fa:'التحقق',
+      tAds:'الحملات الإعلانية', addCampaign:'+ حملة جديدة', thPlatform:'المنصة', thName:'الحملة',
+      thBudget:'الميزانية', thSpent:'المنصرف', thRemaining:'المتبقي', thAction:'إجراء', adFundH:'عزّز إعلاناتك',
+      tSecurity:'الأمان', adminPassword:'كلمة المرور الخاصة بي', currentPassword:'كلمة المرور الحالية', newPassword:'كلمة مرور جديدة',
+      confirmPassword:'تأكيد كلمة المرور', updatePassword:'تحديث كلمة المرور', accountProtection:'حماية الحساب',
+      twofaTitle:'التحقق بخطوتين', twofaDesc:'طلب رمز لمرة واحدة عند تسجيل الدخول إضافة إلى كلمة المرور.',
+      tSettings:'الإعدادات', saveAll:'حفظ كل التغييرات', siteInfo:'معلومات المتجر', siteName:'اسم المتجر', tagline:'الشعار النصي',
+      phone:'الهاتف', whatsappNum:'رقم واتساب (بدون +)', emailAddr:'البريد', address:'العنوان', announcement:'الإعلان (يظهر في الشريط العلوي)',
+      socialLinks:'روابط التواصل الاجتماعي', socialHint:'تظهر للعملاء في المتجر.',
+      walletsH:'المحافظ الإلكترونية اليمنية', addWallet:'+ إضافة محفظة', currenciesH:'العملات',
+      currenciesHint:'سعر الصرف = كم ريال يمني يعادل وحدة واحدة من تلك العملة. أسعار المنتجات تُحفظ بالريال.',
+      nameEn:'الاسم (إنجليزي)', nameAr:'الاسم (عربي)', category:'الفئة', priceYer:'السعر (ريال)',
+      oldPrice:'السعر القديم (ريال، اختياري)', stock:'المخزون', image:'صورة المنتج', imgHint:'ارفع ملفاً أو الصق رابط صورة.',
+      cancel:'إلغاء', saveProduct:'حفظ المنتج', saveStaff:'حفظ', password:'كلمة المرور',
+      budget:'الميزانية (ريال)', spent:'المنصرف حتى الآن (ريال)', startDate:'تاريخ البداية', endDate:'تاريخ النهاية',
+      results:'النتائج / ملاحظات', adLink:'رابط الإعلان (اختياري)', saveCampaign:'حفظ الحملة',
+      addEdit:'تعديل', del:'حذف', save:'حفظ', fund:'فتح مدير الإعلانات', waChat:'محادثة واتساب',
+      walletNumber:'الرقم', walletOwner:'صاحب المحفظة', walletType:'النوع', walletEnabled:'مفعّلة', remove:'إزالة',
+      curRate:'سعر الصرف (1 وحدة = ريال)', curSymbol:'الرمز', curLabelEn:'التسمية (EN)', curLabelAr:'التسمية (AR)',
+      emptyOrders:'لا توجد طلبات بعد.', emptyCustomers:'لا يوجد عملاء بعد.', emptyStaff:'لا يوجد مسؤولون.',
+      emptyAds:'لا توجد حملات بعد.', low:'مخزون منخفض', inStock:'متوفر',
+    }
+  };
+  let lang = store.get('pm_admin_lang') || 'en';
+  const t = (k) => (A18N[lang] && A18N[lang][k]) || A18N.en[k] || k;
+
+  // --- toast ---
+  const toastEl = document.getElementById('toast');
+  let toastTimer;
+  function toast(msg){
+    toastEl.textContent = msg; toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
+  }
+
+  function applyLang(){
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    const lbl = lang === 'ar' ? 'English' : 'عربي';
+    document.getElementById('loginLang').textContent = lbl;
+    document.getElementById('sideLang').textContent = lbl;
+    document.getElementById('loginNote').textContent = t('loginNote');
+    document.getElementById('lblEmail').textContent = t('thEmail');
+    document.getElementById('lblPass').textContent = t('password');
+    document.getElementById('loginBtn').textContent = lang === 'ar' ? 'دخول' : 'Sign in';
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    renderAll();
+  }
+  document.getElementById('loginLang').addEventListener('click', () => { lang = lang === 'ar' ? 'en' : 'ar'; store.set('pm_admin_lang', lang); applyLang(); });
+  document.getElementById('sideLang').addEventListener('click', () => { lang = lang === 'ar' ? 'en' : 'ar'; store.set('pm_admin_lang', lang); applyLang(); });
+
+  // --- login ---
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const email = f.querySelector('input[type="email"]').value;
+    const password = f.querySelector('input[type="password"]').value;
+    try {
+      const res = await fetch(api('/auth/login'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (data.requires2fa) {
+        const code = prompt(lang === 'ar' ? 'أدخل رمز التحقق المكوّن من 6 أرقام من تطبيق المصادقة:' : 'Enter the 6-digit code from your authenticator app:');
+        if (!code) throw new Error('2FA cancelled');
+        const res2 = await fetch(api('/auth/login/2fa'), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: data.token, code }),
+        });
+        const data2 = await res2.json();
+        if (!res2.ok) throw new Error(data2.error || 'Invalid 2FA code');
+        authToken = data2.token;
+        adminEmail = (data2.admin && data2.admin.email) || email;
+      } else {
+        authToken = data.token;
+        adminEmail = (data.admin && data.admin.email) || email;
+      }
+      document.getElementById('whoEmail').textContent = adminEmail;
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('app').classList.add('show');
+      await loadAll();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    authToken = null;
+    document.getElementById('app').classList.remove('show');
+    document.getElementById('loginGate').style.display = 'flex';
+  });
+
+  async function apiFetch(path, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...opts.headers };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const res = await fetch(api(path), { ...opts, headers });
+    if (!res.ok) {
+      let msg = res.statusText;
+      try { msg = (await res.json()).error || msg; } catch {}
+      throw new Error(msg);
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  // --- nav ---
+  document.querySelectorAll('.side-nav button').forEach(btn => {
+    btn.addEventListener('click', () => switchView(btn.dataset.view));
+  });
+  document.querySelectorAll('[data-goto]').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.goto)));
+  function switchView(view){
+    document.querySelectorAll('.side-nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+  }
+
+  // --- data ---
+  let products = [], orders = [], customers = [], admins = [], ads = [], settings = null;
+
+  async function loadAll(){
+    try {
+      const [p, o, a, ad, s] = await Promise.all([
+        apiFetch('/products'), apiFetch('/orders'), apiFetch('/admins'), apiFetch('/ads'), apiFetch('/settings'),
+      ]);
+      products = p; orders = o; admins = a; ads = ad; settings = s;
+      customers = await apiFetch('/customers');
+      renderAll();
+      toast('Data synced');
+    } catch (err) {
+      console.error(err);
+      toast('Could not load data');
+    }
+  }
+  function renderAll(){
+    renderDashboard(); renderProducts(); renderOrders(); renderCustomers();
+    renderStaff(); renderAds(); renderSecurity(); renderSettings();
+  }
+
+  function statusPill(s){ return `<span class="status-pill ${s}">${s}</span>`; }
+  function stockStatus(stock){ return stock <= 5 ? `<span class="status-pill low">${t('low')}</span>` : `<span class="status-pill ok">${t('inStock')}</span>`; }
+  const payName = (pm) => {
+    if (!pm || pm === 'cod') return t('cod') || 'COD';
+    const w = settings && settings.wallets ? settings.wallets.find(x => x.id === pm) : undefined;
+    return w ? (lang === 'ar' && w.nameAr ? w.nameAr : w.name) : pm;
+  };
+  const PLATFORM_CLASS = { facebook:'fb', instagram:'ig', tiktok:'tiktok', whatsapp:'wa', youtube:'yt', telegram:'tele' };
+  const PLATFORM_MANAGER = {
+    facebook:'https://www.facebook.com/adsmanager/manage/campaigns/',
+    instagram:'https://business.facebook.com/adsmanager/manage/campaigns/',
+    tiktok:'https://ads.tiktok.com/i18n/business/management',
+    whatsapp:'https://wa.me/',
+    youtube:'https://ads.google.com/',
+    telegram:'https://ads.telegram.org/',
+  };
+
+  function renderDashboard(){
+    const revenue = orders.reduce((s,o) => s + (o.total||0), 0);
+    const lowStock = products.filter(p => p.stock <= 5).length;
+    document.getElementById('statGrid').innerHTML = `
+      <div class="stat-card"><div class="label">${t('thTotal')}</div><div class="value">${revenue.toLocaleString()} YER</div><div class="delta up">${orders.length} ${t('thOrdersCount')}</div></div>
+      <div class="stat-card"><div class="label">${t('thOrdersCount')}</div><div class="value">${orders.length}</div></div>
+      <div class="stat-card"><div class="label">${t('tCustomers')}</div><div class="value">${customers.length}</div></div>
+      <div class="stat-card"><div class="label">${t('lowStock')}</div><div class="value">${lowStock}</div></div>`;
+    document.getElementById('dashOrdersBody').innerHTML = orders.length ? orders.slice().reverse().slice(0,4).map(o => `
+      <tr><td class="mono">${o.id}</td><td>${(o.shipping && o.shipping.name) || '—'}</td><td>${o.items ? o.items.length : 0}</td><td>${Number(o.total||0).toLocaleString()} ${o.currency||'YER'}</td><td>${payName(o.paymentMethod)}</td><td>${statusPill(o.status)}</td></tr>`).join('')
+      : `<tr><td colspan="6" style="text-align:center; color:var(--gray);">${t('emptyOrders')}</td></tr>`;
+    document.getElementById('dashStockBody').innerHTML = products.filter(p => p.stock <= 5).map(p => `
+      <tr><td>${p.name}</td><td class="mono">${p.sku}</td><td>${p.stock}</td><td>${stockStatus(p.stock)}</td></tr>`).join('');
+  }
+
+  function renderProducts(){
+    document.getElementById('productsBody').innerHTML = products.map((p,i) => `
+      <tr>
+        <td><div style="display:flex; align-items:center; gap:10px;">${p.image ? `<img src="${absAsset(p.image)}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:4px;"/>` : ''}<div>${p.name}${p.nameAr ? `<div style="font-size:0.75rem; color:var(--gray);">${p.nameAr}</div>` : ''}</div></div></td>
+        <td style="text-transform:capitalize;">${p.category || p.cat}</td><td>${Number(p.price).toLocaleString()}</td><td>${p.stock}</td><td>${stockStatus(p.stock)}</td>
+        <td class="row-actions"><button data-edit="${i}">${t('addEdit')}</button><button class="del" data-del="${i}">${t('del')}</button></td>
+      </tr>`).join('');
+    document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openProductModal(+b.dataset.edit)));
+    document.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+      const i = +b.dataset.del;
+      try {
+        await apiFetch('/products/' + products[i].id, { method: 'DELETE' });
+        products.splice(i,1); renderAll(); toast('Deleted');
+      } catch (err) { toast(err.message); }
+    }));
+  }
+
+  function renderOrders(){
+    document.getElementById('ordersBody').innerHTML = orders.length ? orders.slice().reverse().map(o => `
+      <tr><td class="mono">${o.id}</td><td>${(o.shipping && o.shipping.name) || '—'}<div style="font-size:0.74rem; color:var(--gray);">${(o.shipping && o.shipping.email) || ''}</div></td><td>${new Date(o.createdAt).toLocaleDateString()}</td><td>${o.items ? o.items.length : 0}</td><td>${Number(o.total||0).toLocaleString()} ${o.currency||'YER'}</td><td>${payName(o.paymentMethod)}</td>
+      <td><select data-order="${o.id}" class="status-select"><option value="pending">pending</option><option value="paid">paid</option><option value="shipped">shipped</option><option value="cancelled">cancelled</option></select></td></tr>`).join('')
+      : `<tr><td colspan="7" style="text-align:center; color:var(--gray);">${t('emptyOrders')}</td></tr>`;
+    document.querySelectorAll('.status-select').forEach(sel => {
+      const _ord = orders.find(o => o.id === sel.dataset.order);
+      sel.value = (_ord && _ord.status) || 'pending';
+      sel.addEventListener('change', async (e) => {
+        try {
+          await apiFetch('/orders/' + sel.dataset.order + '/status', { method: 'PUT', body: JSON.stringify({ status: e.target.value }) });
+          toast('Updated');
+        } catch(err) { toast(err.message); }
+      });
+    });
+  }
+
+  function renderCustomers(){
+    const byEmail = {};
+    orders.forEach(o => {
+      const email = (o.shipping && o.shipping.email) || 'unknown';
+      if (!byEmail[email]) byEmail[email] = { email, orders: 0, name: (o.shipping && o.shipping.name) || '' };
+      byEmail[email].orders += 1;
+    });
+    const fromOrders = Object.values(byEmail);
+    const regs = customers.map(c => ({ email: c.email, name: c.name, joined: c.createdAt, orders: (byEmail[c.email] && byEmail[c.email].orders) || 0 }));
+    const merged = {};
+    [...fromOrders, ...regs].forEach(x => { merged[x.email] = { ...(merged[x.email]||{}), ...x }; });
+    const list = Object.values(merged);
+    document.getElementById('customersBody').innerHTML = list.length ? list.map(c => `
+      <tr><td>${c.name || '—'}</td><td>${c.email}</td><td>${c.orders || 0}</td><td>${c.joined ? new Date(c.joined).toLocaleDateString() : '—'}</td></tr>`).join('')
+      : `<tr><td colspan="4" style="text-align:center; color:var(--gray);">${t('emptyCustomers')}</td></tr>`;
+  }
+
+  // ---------- staff ----------
+  function renderStaff(){
+    document.getElementById('staffBody').innerHTML = admins.map(a => `
+      <tr><td>${a.name}</td><td>${a.email}${a.email === adminEmail ? ` <span class="status-pill ok">${lang==='ar'?'أنت':'you'}</span>` : ''}</td><td>${a.twoFactorEnabled ? '<span class="status-pill paid">ON</span>' : '—'}</td><td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</td>
+      <td class="row-actions">
+        ${a.email === adminEmail ? '' : `<button class="del" data-rem="${a.id}">${t('del')}</button>`}
+        <button data-reset="${a.id}">${lang==='ar'?'إعادة تعيين كلمة المرور':'Reset password'}</button>
+      </td></tr>`).join('');
+    document.querySelectorAll('[data-rem]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm(lang === 'ar' ? 'حذف هذا المسؤول؟' : 'Remove this staff member?')) return;
+      try { await apiFetch('/admins/' + b.dataset.rem, { method: 'DELETE' }); admins = admins.filter(x => x.id !== +b.dataset.rem); renderStaff(); toast('Removed'); }
+      catch (err) { toast(err.message); }
+    }));
+    document.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', async () => {
+      const pw = prompt(lang === 'ar' ? 'كلمة المرور الجديدة (8 أحرف على الأقل):' : 'New password (min 8 characters):');
+      if (!pw || pw.length < 8) return toast('Min 8 characters');
+      try { await apiFetch('/admins/' + b.dataset.reset, { method: 'PUT', body: JSON.stringify({ password: pw }) }); toast('Password reset'); }
+      catch (err) { toast(err.message); }
+    }));
+  }
+  const staffModalOverlay = document.getElementById('staffModalOverlay');
+  document.getElementById('addStaffBtn').addEventListener('click', () => {
+    document.getElementById('staffModalTitle').textContent = t('addStaff');
+    document.getElementById('staffForm').reset();
+    staffModalOverlay.classList.add('open');
+  });
+  document.getElementById('staffModalCancel').addEventListener('click', () => staffModalOverlay.classList.remove('open'));
+  document.getElementById('staffForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      name: document.getElementById('sf-name').value,
+      email: document.getElementById('sf-email').value,
+      password: document.getElementById('sf-pass').value,
+    };
+    try {
+      const saved = await apiFetch('/admins', { method: 'POST', body: JSON.stringify(data) });
+      admins.push(saved);
+      staffModalOverlay.classList.remove('open');
+      renderStaff(); toast('Staff added');
+    } catch (err) { toast(err.message); }
+  });
+
+  // ---------- ads ----------
+  function renderAds(){
+    const totalBudget = ads.reduce((s,a) => s + (Number(a.budget)||0), 0);
+    const totalSpent = ads.reduce((s,a) => s + (Number(a.spent)||0), 0);
+    const byPlatform = {};
+    ads.forEach(a => { byPlatform[a.platform] = (byPlatform[a.platform]||0) + (Number(a.budget)||0); });
+    document.getElementById('adStatGrid').innerHTML = `
+      <div class="stat-card"><div class="label">${t('thBudget')}</div><div class="value">${totalBudget.toLocaleString()} YER</div></div>
+      <div class="stat-card"><div class="label">${t('thSpent')}</div><div class="value">${totalSpent.toLocaleString()} YER</div></div>
+      <div class="stat-card"><div class="label">${t('thRemaining')}</div><div class="value">${(totalBudget-totalSpent).toLocaleString()} YER</div></div>
+      <div class="stat-card"><div class="label">${t('thPlatform')}</div><div class="value" style="font-size:0.95rem;">${Object.keys(byPlatform).length}</div></div>`;
+    document.getElementById('adsBody').innerHTML = ads.length ? ads.slice().reverse().map((a,i) => {
+      const remaining = (Number(a.budget)||0) - (Number(a.spent)||0);
+      const pname = { facebook:'Facebook / Meta', instagram:'Instagram', tiktok:'TikTok', whatsapp:'WhatsApp', youtube:'YouTube', telegram:'Telegram' }[a.platform] || a.platform;
+      return `<tr>
+        <td><span class="platform-tag ${PLATFORM_CLASS[a.platform]||''}">${pname}</span></td>
+        <td>${a.name}${a.notes ? `<div style="font-size:0.74rem; color:var(--gray);">${a.notes}</div>` : ''}</td>
+        <td>${Number(a.budget).toLocaleString()}</td><td>${Number(a.spent).toLocaleString()}</td>
+        <td style="color:${remaining < 0 ? 'var(--maroon)' : 'var(--green)'}; font-weight:600;">${remaining.toLocaleString()}</td>
+        <td>${statusPill(a.status)}</td>
+        <td>${a.platform === 'whatsapp'
+          ? `<a class="btn btn-ghost btn-sm" href="${a.link || PLATFORM_MANAGER.whatsapp + ((settings && settings.whatsapp) || '')}" target="_blank" rel="noopener">${t('waChat')}</a>`
+          : `<a class="btn btn-ghost btn-sm" href="${a.link || PLATFORM_MANAGER[a.platform]}" target="_blank" rel="noopener">${t('fund')}</a>`}</td>
+        <td class="row-actions"><button data-editad="${i}">${t('addEdit')}</button><button class="del" data-delad="${i}">${t('del')}</button></td>
+      </tr>`;}).join('')
+      : `<tr><td colspan="8" style="text-align:center; color:var(--gray);">${t('emptyAds')}</td></tr>`;
+    document.querySelectorAll('[data-editad]').forEach(b => b.addEventListener('click', () => openAdModal(+b.dataset.editad)));
+    document.querySelectorAll('[data-delad]').forEach(b => b.addEventListener('click', async () => {
+      const i = +b.dataset.delad;
+      try { await apiFetch('/ads/' + ads[i].id, { method: 'DELETE' }); ads.splice(i,1); renderAds(); toast('Deleted'); }
+      catch (err) { toast(err.message); }
+    }));
+    const links = document.getElementById('adLinks');
+    links.innerHTML = Object.keys(PLATFORM_MANAGER).map(p => {
+      const pname = { facebook:'Facebook / Meta', instagram:'Instagram', tiktok:'TikTok', whatsapp:'WhatsApp', youtube:'YouTube', telegram:'Telegram' }[p];
+      const href = p === 'whatsapp' ? 'https://wa.me/' + ((settings && settings.whatsapp) || '') : PLATFORM_MANAGER[p];
+      return `<div class="form-field"><label>${pname}</label><a class="btn btn-ghost" href="${href}" target="_blank" rel="noopener">${t('fund')}</a></div>`;
+    }).join('');
+  }
+  const adModalOverlay = document.getElementById('adModalOverlay');
+  let adEditIndex = null;
+  function openAdModal(index){
+    adEditIndex = index;
+    document.getElementById('adModalTitle').textContent = index !== null ? t('addEdit') : t('addCampaign');
+    const a = index !== null ? ads[index] : { name:'', platform:'facebook', budget:'', spent:0, status:'active', startDate:new Date().toISOString().slice(0,10), endDate:'', notes:'', link:'' };
+    document.getElementById('af-name').value = a.name;
+    document.getElementById('af-platform').value = a.platform;
+    document.getElementById('af-budget').value = a.budget;
+    document.getElementById('af-spent').value = a.spent;
+    document.getElementById('af-status').value = a.status;
+    document.getElementById('af-start').value = a.startDate || '';
+    document.getElementById('af-end').value = a.endDate || '';
+    document.getElementById('af-notes').value = a.notes || '';
+    document.getElementById('af-link').value = a.link || '';
+    adModalOverlay.classList.add('open');
+  }
+  document.getElementById('addAdBtn').addEventListener('click', () => openAdModal(null));
+  document.getElementById('adModalCancel').addEventListener('click', () => adModalOverlay.classList.remove('open'));
+  document.getElementById('adForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      name: document.getElementById('af-name').value,
+      platform: document.getElementById('af-platform').value,
+      budget: +document.getElementById('af-budget').value || 0,
+      spent: +document.getElementById('af-spent').value || 0,
+      status: document.getElementById('af-status').value,
+      startDate: document.getElementById('af-start').value,
+      endDate: document.getElementById('af-end').value,
+      notes: document.getElementById('af-notes').value,
+      link: document.getElementById('af-link').value,
+    };
+    try {
+      if (adEditIndex !== null) {
+        const saved = await apiFetch('/ads/' + ads[adEditIndex].id, { method: 'PUT', body: JSON.stringify(data) });
+        ads[adEditIndex] = saved;
+      } else {
+        ads.push(await apiFetch('/ads', { method: 'POST', body: JSON.stringify(data) }));
+      }
+      adModalOverlay.classList.remove('open');
+      renderAds(); toast('Saved');
+    } catch (err) { toast(err.message); }
+  });
+
+  // ---------- security ----------
+  function renderSecurity(){
+    const btn = document.getElementById('toggle2fa');
+    const me = admins.find(a => a.email === adminEmail);
+    btn.classList.toggle('on', !!(me && me.twoFactorEnabled));
+  }
+  document.getElementById('toggle2fa').addEventListener('click', async () => {
+    const btn = document.getElementById('toggle2fa');
+    if (btn.classList.contains('on')) {
+      try {
+        await apiFetch('/auth/2fa', { method: 'DELETE' });
+        btn.classList.remove('on');
+        toast('2FA disabled');
+      } catch (err) { toast(err.message); }
+      return;
+    }
+    try {
+      const data = await apiFetch('/auth/2fa/setup');
+      const qrOverlay = document.createElement('div');
+      qrOverlay.innerHTML = `
+        <div style="text-align:center; padding:20px;">
+          <h4 style="margin:0 0 14px;">${lang==='ar'?'امسح رمز QR هذا':'Scan this QR code'}</h4>
+          <img src="${data.qr}" alt="QR code" style="max-width:200px; margin:0 auto; display:block;" />
+          <p class="mono" style="font-size:0.7rem; margin:12px 0; word-break:break-all; color:var(--gray);">${data.secret}</p>
+          <p style="font-size:0.78rem; color:var(--gray); margin:10px 0;">${lang==='ar'?'أو أدخل هذا الرمز يدوياً في تطبيق المصادقة.':'Or enter this code manually in your authenticator app.'}</p>
+          <input id="totpCode" type="text" placeholder="6-digit code" maxlength="6" style="text-align:center; font-size:1.1rem; padding:8px; border:1px solid var(--line); margin:12px 0; display:block; width:100%;" />
+          <button class="btn" id="verify2fa" style="width:100%;">${lang==='ar'?'تحقق وفعّل':'Verify & enable'}</button>
+        </div>`;
+      qrOverlay.style.cssText = 'position:fixed; inset:0; background:rgba(35,35,35,0.6); z-index:700; display:flex; align-items:center; justify-content:center;';
+      document.body.appendChild(qrOverlay);
+      document.getElementById('verify2fa').addEventListener('click', async () => {
+        const code = document.getElementById('totpCode').value.trim();
+        if (code.length !== 6) return alert('6-digit code');
+        try {
+          await apiFetch('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code }) });
+          document.body.removeChild(qrOverlay);
+          btn.classList.add('on');
+          toast('2FA enabled');
+        } catch (err) { toast('Invalid code'); }
+      });
+    } catch (err) { toast('2FA setup failed'); }
+  });
+
+  document.getElementById('pwForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const inputs = e.target.querySelectorAll('input');
+    const current = inputs[0].value;
+    const password = inputs[1].value;
+    const confirm = inputs[2].value;
+    if (password !== confirm) return toast('Passwords do not match');
+    if (password.length < 8) return toast('Password must be at least 8 characters');
+    try {
+      await apiFetch('/auth/password', { method: 'PUT', body: JSON.stringify({ currentPassword: current, password }) });
+      e.target.reset();
+      toast('Password updated');
+    } catch (err) { toast(err.message); }
+  });
+
+  // ---------- settings ----------
+  function renderSettings(){
+    if (!settings) return;
+    document.getElementById('set-name').value = settings.siteName || '';
+    document.getElementById('set-tagline').value = settings.tagline || '';
+    document.getElementById('set-phone').value = settings.phone || '';
+    document.getElementById('set-whatsapp').value = settings.whatsapp || '';
+    document.getElementById('set-email').value = settings.email || '';
+    document.getElementById('set-address').value = settings.address || '';
+    document.getElementById('set-announcement').value = settings.announcement || '';
+    document.getElementById('set-social-fb').value = (settings.social && settings.social.facebook) || '';
+    document.getElementById('set-social-ig').value = (settings.social && settings.social.instagram) || '';
+    document.getElementById('set-social-tt').value = (settings.social && settings.social.tiktok) || '';
+    document.getElementById('set-social-wa').value = (settings.social && settings.social.whatsapp) || '';
+    document.getElementById('set-social-yt').value = (settings.social && settings.social.youtube) || '';
+    document.getElementById('set-social-tg').value = (settings.social && settings.social.telegram) || '';
+    renderWalletsEditor();
+    renderCurrenciesEditor();
+  }
+
+  function renderWalletsEditor(){
+    const box = document.getElementById('walletsEditor');
+    box.innerHTML = '';
+    (settings.wallets || []).forEach((w,i) => {
+      const row = document.createElement('div');
+      row.className = 'wallet-edit';
+      row.innerHTML = `
+        <div class="head"><b>${i+1}. ${w.name || ''}</b><button class="btn btn-danger btn-sm" data-wallet-del="${i}">${t('remove')}</button></div>
+        <div class="mini-row">
+          <div class="form-field"><label data-i18n="nameEn">Name (EN)</label><input class="w-name" value="${w.name || ''}"></div>
+          <div class="form-field"><label data-i18n="nameAr">Name (AR)</label><input class="w-namear" value="${w.nameAr || ''}"></div>
+          <div class="form-field"><label data-i18n="walletNumber">Number</label><input class="w-num" value="${w.number || ''}"></div>
+          <div class="form-field"><label data-i18n="walletOwner">Owner</label><input class="w-owner" value="${w.owner || ''}"></div>
+          <div class="form-field"><label data-i18n="walletType">Type</label><select class="w-type"><option value="mobile">Mobile</option><option value="bank">Bank</option><option value="cod">COD</option></select></div>
+        </div>
+        <div class="chk-row"><input type="checkbox" class="w-enabled" ${w.enabled === false ? '' : 'checked'}> <span data-i18n="walletEnabled">Enabled</span></div>`;
+      row.querySelector('.w-type').value = w.type || 'mobile';
+      box.appendChild(row);
+    });
+    box.querySelectorAll('[data-wallet-del]').forEach(b => b.addEventListener('click', () => {
+      settings.wallets.splice(+b.dataset.walletDel, 1);
+      renderWalletsEditor();
+    }));
+  }
+
+  function collectWallets(){
+    const box = document.getElementById('walletsEditor');
+    const out = [];
+    box.querySelectorAll('.wallet-edit').forEach((row,i) => {
+      out.push({
+        id: (settings.wallets[i] && settings.wallets[i].id) || ('wlt-' + Date.now() + '-' + i),
+        name: row.querySelector('.w-name').value,
+        nameAr: row.querySelector('.w-namear').value,
+        number: row.querySelector('.w-num').value,
+        owner: row.querySelector('.w-owner').value,
+        type: row.querySelector('.w-type').value,
+        enabled: row.querySelector('.w-enabled').checked,
+      });
+    });
+    return out;
+  }
+
+  function renderCurrenciesEditor(){
+    const box = document.getElementById('currenciesEditor');
+    box.innerHTML = '';
+    Object.keys(settings.currencies || {}).forEach(code => {
+      const c = settings.currencies[code];
+      const row = document.createElement('div');
+      row.className = 'form-field';
+      row.innerHTML = `
+        <label>${code} — ${t('curRate')}</label>
+        <input class="c-rate" data-code="${code}" type="number" min="0" step="0.01" value="${c.rate}">
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <input class="c-sym" data-code="${code}" value="${c.symbol || ''}" style="width:70px; text-align:center;" title="${t('curSymbol')}">
+          <input class="c-laben" data-code="${code}" value="${c.label || ''}" placeholder="EN label">
+          <input class="c-labar" data-code="${code}" value="${c.labelAr || ''}" placeholder="AR label">
+        </div>`;
+      box.appendChild(row);
+    });
+  }
+
+  function collectCurrencies(){
+    const out = {};
+    document.querySelectorAll('.c-rate').forEach(inp => {
+      const code = inp.dataset.code;
+      out[code] = {
+        rate: +inp.value || 1,
+        symbol: document.querySelector(`.c-sym[data-code="${code}"]`).value,
+        label: document.querySelector(`.c-laben[data-code="${code}"]`).value,
+        labelAr: document.querySelector(`.c-labar[data-code="${code}"]`).value,
+      };
+    });
+    return out;
+  }
+
+  document.getElementById('addWalletBtn').addEventListener('click', () => {
+    if (!settings) settings = { wallets: [] };
+    settings.wallets.push({ id: 'wlt-' + Date.now(), name: '', nameAr: '', number: '', owner: '', type: 'mobile', enabled: true });
+    renderWalletsEditor();
+  });
+
+  document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    const payload = {
+      siteName: document.getElementById('set-name').value,
+      tagline: document.getElementById('set-tagline').value,
+      phone: document.getElementById('set-phone').value,
+      whatsapp: document.getElementById('set-whatsapp').value,
+      email: document.getElementById('set-email').value,
+      address: document.getElementById('set-address').value,
+      announcement: document.getElementById('set-announcement').value,
+      social: {
+        facebook: document.getElementById('set-social-fb').value,
+        instagram: document.getElementById('set-social-ig').value,
+        tiktok: document.getElementById('set-social-tt').value,
+        whatsapp: document.getElementById('set-social-wa').value,
+        youtube: document.getElementById('set-social-yt').value,
+        telegram: document.getElementById('set-social-tg').value,
+      },
+      wallets: collectWallets(),
+      currencies: collectCurrencies(),
+    };
+    try {
+      settings = await apiFetch('/settings', { method: 'PUT', body: JSON.stringify(payload) });
+      renderSettings();
+      toast('Settings saved');
+    } catch (err) { toast(err.message); }
+  });
+
+  // ---------- product modal + upload ----------
+  let editIndex = null;
+  const productModalOverlay = document.getElementById('productModalOverlay');
+  document.getElementById('addProductBtn').addEventListener('click', () => openProductModal(null));
+  document.getElementById('productModalCancel').addEventListener('click', () => productModalOverlay.classList.remove('open'));
+  function openProductModal(index){
+    editIndex = index;
+    const isEdit = index !== null;
+    document.getElementById('productModalTitle').textContent = isEdit ? t('addEdit') : t('addProduct');
+    const p = isEdit ? products[index] : { name:'', nameAr:'', category:'smart', price:'', stock:'' };
+    document.getElementById('pf-name').value = p.name;
+    document.getElementById('pf-nameAr').value = p.nameAr || '';
+    document.getElementById('pf-cat').value = p.category || p.cat || 'smart';
+    document.getElementById('pf-price').value = p.price;
+    document.getElementById('pf-old').value = p.oldPrice || '';
+    document.getElementById('pf-stock').value = p.stock;
+    document.getElementById('pf-image').value = p.image || '';
+    const preview = document.getElementById('pf-preview');
+    preview.style.display = p.image ? 'block' : 'none';
+    preview.src = absAsset(p.image || '');
+    document.getElementById('pf-file').value = '';
+    productModalOverlay.classList.add('open');
+  }
+  document.getElementById('pf-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('image', file);
+    try {
+      const res = await fetch(api('/upload'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      document.getElementById('pf-image').value = data.url;
+      const preview = document.getElementById('pf-preview');
+      preview.src = data.url; preview.style.display = 'block';
+      toast('Image uploaded');
+    } catch (err) { toast(err.message); }
+  });
+  document.getElementById('pf-image').addEventListener('input', (e) => {
+    const preview = document.getElementById('pf-preview');
+    if (e.target.value) { preview.src = e.target.value; preview.style.display = 'block'; }
+  });
+  document.getElementById('productForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      name: document.getElementById('pf-name').value,
+      nameAr: document.getElementById('pf-nameAr').value,
+      category: document.getElementById('pf-cat').value,
+      price: +document.getElementById('pf-price').value,
+      oldPrice: document.getElementById('pf-old').value ? +document.getElementById('pf-old').value : null,
+      stock: +document.getElementById('pf-stock').value,
+      image: document.getElementById('pf-image').value || null,
+    };
+    try {
+      if (editIndex !== null) {
+        const saved = await apiFetch('/products/' + products[editIndex].id, { method: 'PUT', body: JSON.stringify(data) });
+        products[editIndex] = saved;
+      } else {
+        products.push(await apiFetch('/products', { method: 'POST', body: JSON.stringify(data) }));
+      }
+      productModalOverlay.classList.remove('open');
+      renderAll();
+      toast('Saved');
+    } catch (err) { toast(err.message); }
+  });
+
+  document.getElementById('refreshOrdersBtn').addEventListener('click', () => loadAll());
+  document.getElementById('refreshCustomersBtn').addEventListener('click', () => loadAll());
+
+  applyLang();
+</script>
+</body>
+</html>
