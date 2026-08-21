@@ -569,7 +569,7 @@
       return data;
     });
   }
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
     const f = e.target;
     const email = f.querySelector('input[type="email"]').value;
@@ -602,10 +602,10 @@
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
     }
-  });
-  document.getElementById('loginBtn').addEventListener('click', (e) => {
+  }
+  document.getElementById('loginBtn').addEventListener('click', async (e) => {
     e.preventDefault();
-    handleLogin({ target: document.getElementById('loginForm'), preventDefault: () => {} });
+    await handleLogin({ target: document.getElementById('loginForm'), preventDefault: () => {} });
   });
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
