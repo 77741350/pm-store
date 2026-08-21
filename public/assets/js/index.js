@@ -333,16 +333,22 @@
 
   // ---------- customer auth ----------
   function authModalHtml(){
+    const isLogin = !isRegisterMode;
     return `
-      <div class="checkout-step">
-        <h3 id="authTitle">${isRegisterMode ? t('authTitleReg') : t('authTitle')}</h3>
-        <form id="authForm">
-          <div class="field-row"><div class="field"><label>${t('fullName')}</label><input id="auth-name" required></div><div class="field"><label>${t('email')}</label><input id="auth-email" type="email" required></div></div>
-          <div class="field-row"><div class="field"><label>${t('password')}</label><input id="auth-password" type="password" required></div><div class="field"></div></div>
-          <button type="submit" class="btn" style="width:100%; justify-content:center;" id="authSubmit">${isRegisterMode ? t('register') : t('signIn')}</button>
+      <div class="checkout-step" style="max-width:380px; margin:0 auto;">
+        <div style="text-align:center; margin-bottom:18px;">
+          <h3 id="authTitle" style="margin:0 0 6px; font-size:1.25rem;">${isRegisterMode ? t('authTitleReg') : t('authTitle')}</h3>
+          <p style="margin:0; font-size:0.82rem; color:var(--gray);">${isLogin ? (lang==='ar'?'ادخل بحسابك للمتابعة':'Sign in to continue shopping') : (lang==='ar'?'أنشئ حسابك في ثوانٍ':'Create your account in seconds')}</p>
+        </div>
+        <form id="authForm" style="display:flex; flex-direction:column; gap:12px;">
+          ${isRegisterMode ? `<div class="field"><label style="font-size:0.82rem;">${t('fullName')}</label><input id="auth-name" placeholder="${lang==='ar'?'مثال: أحمد محمد':'e.g. Ahmed Mohamed'}" required style="padding:11px 12px; font-size:0.95rem;"></div>` : ''}
+          <div class="field"><label style="font-size:0.82rem;">${t('email')}</label><input id="auth-email" type="email" placeholder="you@example.com" required autocomplete="email" style="padding:11px 12px; font-size:0.95rem;"></div>
+          <div class="field"><label style="font-size:0.82rem;">${t('password')}</label><div style="position:relative;"><input id="auth-password" type="password" placeholder="••••••••" required autocomplete="${isLogin?'current-password':'new-password'}" style="padding:11px 36px 11px 12px; font-size:0.95rem; width:100%;"><button type="button" id="togglePass" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--gray); font-size:0.8rem;">👁</button></div></div>
+          <button type="submit" class="btn" style="width:100%; justify-content:center; padding:12px; font-size:0.95rem; margin-top:4px;" id="authSubmit">${isRegisterMode ? t('register') : t('signIn')}</button>
+          <button type="button" class="btn" id="guestBtn" style="width:100%; justify-content:center; background:#f3f4f6; color:#111; border:1px solid #e5e7eb; padding:11px; font-size:0.9rem;">${lang==='ar'?'المتابعة كضيف — بدون تسجيل':'Continue as guest'}</button>
         </form>
-        <p style="text-align:center; font-size:0.8rem; color:var(--gray); margin-top:14px;">
-          <button type="button" class="btn-ghost btn" id="toggleAuthMode" style="font-size:0.78rem; padding:0;">${isRegisterMode ? t('backToLogin') : t('registerInstead')}</button>
+        <p style="text-align:center; font-size:0.82rem; color:var(--gray); margin:14px 0 0;">
+          <button type="button" class="btn-ghost btn" id="toggleAuthMode" style="font-size:0.82rem; padding:4px 8px;">${isRegisterMode ? t('backToLogin') : t('registerInstead')}</button>
         </p>
       </div>`;
   }
@@ -371,17 +377,30 @@
       isRegisterMode = !isRegisterMode;
       renderAuthForm();
     });
+    const toggleBtn = document.getElementById('togglePass');
+    if (toggleBtn) toggleBtn.addEventListener('click', () => {
+      const inp = document.getElementById('auth-password');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+    const guestBtn = document.getElementById('guestBtn');
+    if (guestBtn) guestBtn.addEventListener('click', () => {
+      authOverlay.classList.remove('open');
+      toast(lang==='ar'?'يمكنك إكمال الطلب كضيف':'You can checkout as guest');
+    });
     document.getElementById('authForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById('auth-name').value;
-      const email = document.getElementById('auth-email').value;
+      const nameEl = document.getElementById('auth-name');
+      const name = nameEl ? nameEl.value.trim() : '';
+      const email = document.getElementById('auth-email').value.trim();
       const password = document.getElementById('auth-password').value;
+      if (isRegisterMode && !name) { toast(lang==='ar'?'الاسم مطلوب':'Name required'); return; }
       const endpoint = isRegisterMode ? '/auth/register' : '/auth/login/customer';
       try {
+        const payload = isRegisterMode ? { name, email, password } : { email, password };
         const res = await fetch(api(endpoint), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (!res.ok) {
