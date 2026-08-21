@@ -560,18 +560,24 @@
   document.getElementById('sideLang').addEventListener('click', () => { lang = lang === 'ar' ? 'en' : 'ar'; store.set('pm_admin_lang', lang); applyLang(); });
 
   // --- login ---
-  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  function doLogin(email, password) {
+    return fetch(api('/auth/login'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    }).then(r => r.json()).then(data => {
+      if (!data.token) throw new Error(data.error || 'Login failed');
+      return data;
+    });
+  }
+  function handleLogin(e) {
     e.preventDefault();
     const f = e.target;
     const email = f.querySelector('input[type="email"]').value;
     const password = f.querySelector('input[type="password"]').value;
+    const btn = f.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
     try {
-      const res = await fetch(api('/auth/login'), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+      const data = await doLogin(email, password);
       if (data.requires2fa) {
         const code = prompt(lang === 'ar' ? 'أدخل رمز التحقق المكوّن من 6 أرقام من تطبيق المصادقة:' : 'Enter the 6-digit code from your authenticator app:');
         if (!code) throw new Error('2FA cancelled');
@@ -593,7 +599,13 @@
       await loadAll();
     } catch (err) {
       toast(err.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
     }
+  });
+  document.getElementById('loginBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    handleLogin({ target: document.getElementById('loginForm'), preventDefault: () => {} });
   });
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
