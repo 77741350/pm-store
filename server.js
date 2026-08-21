@@ -30,6 +30,7 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 const isProd = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  if (isProd) throw new Error('JWT_SECRET must be set in production — refusing to start with insecure fallback');
   console.warn('JWT_SECRET not set - using insecure fallback. Set JWT_SECRET in production.');
   return 'pm-store-insecure-fallback-secret-change-me';
 })();
@@ -60,9 +61,9 @@ const seedAdmin = async () => {
   }
   if (s.products.length === 0) {
     s.products.push(
-      { id: store.nextId('product'), name: 'Aura Smart Speaker', nameAr: 'ظ…ظƒط¨ط± طµظˆطھ ط°ظƒظٹ ط£ظˆط±ط§', category: 'smart', price: 89000, stock: 42, sku: 'PMS-1001', image: null, oldPrice: null },
-      { id: store.nextId('product'), name: 'Guardian Security Camera', nameAr: 'ظƒط§ظ…ظٹط±ط§ ظ…ط±ط§ظ‚ط¨ط© ط¬ط§ط±ط¯ظٹط§ظ†', category: 'smart', price: 64000, stock: 5, sku: 'PMS-1002', image: null, oldPrice: null },
-      { id: store.nextId('product'), name: 'Halo Smart Lamp', nameAr: 'ظ…طµط¨ط§ط­ ظ‡ط§ظ„ظˆ ط§ظ„ط°ظƒظٹ', category: 'smart', price: 42000, stock: 60, sku: 'PMS-1003', image: null, oldPrice: null },
+      { id: store.nextId('product'), name: 'Aura Smart Speaker', nameAr: 'مكبر صوت ذكي أورا', category: 'smart', price: 89000, stock: 42, sku: 'PMS-1001', image: null, oldPrice: null },
+      { id: store.nextId('product'), name: 'Guardian Security Camera', nameAr: 'كاميرا مراقبة جارديان', category: 'smart', price: 64000, stock: 5, sku: 'PMS-1002', image: null, oldPrice: null },
+      { id: store.nextId('product'), name: 'Halo Smart Lamp', nameAr: 'مصباح هالو الذكي', category: 'smart', price: 42000, stock: 60, sku: 'PMS-1003', image: null, oldPrice: null },
     );
     await store.save();
   }
@@ -93,13 +94,14 @@ app.use(helmet({
 app.use(express.json({ limit: '200kb' }));
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+if (isProd && !allowedOrigins.includes('https://77741350.github.io')) allowedOrigins.push('https://77741350.github.io');
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const host = req.get('host');
   if (!origin || origin === `${req.protocol}://${host}` || origin === `http://${host}` || origin === `https://${host}`) return next();
   cors({
     origin(o, callback) {
-      if (allowedOrigins.includes(o) || isProd) return callback(null, true);
+      if (allowedOrigins.includes(o)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -472,14 +474,15 @@ app.post(
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
 
     const s = store.load();
+    const newId = store.nextId('product');
     const product = {
-      id: store.nextId('product'),
+      id: newId,
       name: req.body.name,
       nameAr: req.body.nameAr || null,
       category: req.body.category,
       price: req.body.price,
       stock: req.body.stock,
-      sku: 'PMS-' + (1000 + s.products.length + 1),
+      sku: 'PMS-' + (1000 + newId),
       image: req.body.image || null,
       oldPrice: req.body.oldPrice || null,
     };
@@ -559,10 +562,25 @@ app.post(
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
 
     const s = store.load();
-    const total = req.body.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    // Server-side price verification — never trust client price
+    let total = 0;
+    const verifiedItems = [];
+    for (const item of req.body.items) {
+      const prod = s.products.find(p => p.name === item.name || (item.id && p.id === Number(item.id)));
+      if (!prod) return res.status(400).json({ error: `Product not found: ${item.name || item.id || 'unknown'}` });
+      if (typeof prod.stock === 'number' && prod.stock <= 0) return res.status(400).json({ error: `Out of stock: ${prod.name}` });
+      const dbPrice = Number(prod.price);
+      verifiedItems.push({ id: prod.id, name: prod.name, price: dbPrice });
+      total += dbPrice;
+    }
+    // Decrement stock atomically
+    for (const v of verifiedItems) {
+      const p = s.products.find(p => p.id === v.id);
+      if (p && typeof p.stock === 'number') p.stock = Math.max(0, p.stock - 1);
+    }
     const order = {
       id: 'PM-' + String(100000 + store.nextId('order')),
-      items: req.body.items,
+      items: verifiedItems,
       shipping: req.body.shipping,
       total,
       currency: req.body.currency || 'YER',
