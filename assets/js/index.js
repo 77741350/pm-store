@@ -1,6 +1,7 @@
 // --- API configuration ---
   const API_BASE = window.API_BASE || '';
   const api = (path) => API_BASE + '/api' + path;
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const absAsset = (u) => u && !/^https?:/.test(u) ? API_BASE + u : u;
   function safeStorage(){
     try {
@@ -274,21 +275,22 @@
     list.forEach(p => {
       const card = document.createElement('div');
       card.className = 'product-card reveal in';
+      const safeName = escapeHtml(productName(p));
       const media = p.image
-        ? `<img src="${absAsset(p.image)}" alt="${productName(p)}" loading="lazy"/>`
+        ? `<img src="${escapeHtml(absAsset(p.image))}" alt="${safeName}" loading="lazy"/>`
         : productSvg(p.icon);
       card.innerHTML = `
         <div class="product-media">
           ${media}
-          ${p.badge ? `<span class="badge-tag">${p.badge}</span>` : ''}
+          ${p.badge ? `<span class="badge-tag">${escapeHtml(p.badge)}</span>` : ''}
           <button class="wish" aria-label="Wishlist"><svg viewBox="0 0 24 24" stroke-width="1.6"><path d="M12 21s-7.5-4.6-10-9.3C.6 8 2.4 4.5 6 4.1c2-.2 3.7.9 5 2.9 1.3-2 3-3.1 5-2.9 3.6.4 5.4 3.9 4 7.6C19.5 16.4 12 21 12 21z"/></svg></button>
         </div>
         <div class="product-info">
-          <span class="cat">${catLabel(p.cat)}</span>
-          <h3>${productName(p)}</h3>
+          <span class="cat">${escapeHtml(catLabel(p.cat))}</span>
+          <h3>${safeName}</h3>
           <div class="price-row">
             <span class="price">${p.oldPrice ? `<span class="old">${fmtPrice(p.oldPrice)}</span>` : ''}${fmtPrice(p.price)}</span>
-            <button class="add-btn" data-name="${productName(p)}" data-price="${p.price}" data-image="${absAsset(p.image) || ''}">${t('addToCart')}</button>
+            <button class="add-btn" data-name="${safeName}" data-price="${p.price}" data-image="${escapeHtml(absAsset(p.image) || '')}">${t('addToCart')}</button>
           </div>
         </div>`;
       grid.appendChild(card);
@@ -458,7 +460,7 @@
     bagCountEl.textContent = cart.length;
     drawerItems.innerHTML = cart.length === 0
       ? `<div class="drawer-empty">${t('cartEmpty')}</div>`
-      : cart.map((item,i) => `<div class="drawer-item"><div class="thumb">${item.image ? `<img src="${absAsset(item.image)}" alt=""/>` : ''}</div><div class="info"><h4>${item.name}</h4><span>${fmtPrice(item.price)}</span><button class="remove" data-i="${i}">${t('remove')}</button></div></div>`).join('');
+      : cart.map((item,i) => `<div class="drawer-item"><div class="thumb">${item.image ? `<img src="${escapeHtml(absAsset(item.image))}" alt=""/>` : ''}</div><div class="info"><h4>${escapeHtml(item.name)}</h4><span>${fmtPrice(item.price)}</span><button class="remove" data-i="${i}">${t('remove')}</button></div></div>`).join('');
     drawerItems.querySelectorAll('.remove').forEach(btn => btn.addEventListener('click', () => removeFromCart(+btn.dataset.i)));
     subtotalEl.textContent = fmtPrice(cart.reduce((s,i) => s+i.price, 0));
   }
@@ -481,8 +483,8 @@
     let opts = `<option value="cod">${t('cod')}</option>`;
     if (site && site.wallets) {
       site.wallets.forEach(w => {
-        const name = (lang === 'ar' && w.nameAr) ? w.nameAr : w.name;
-        opts += `<option value="${w.id}">${name}${w.number ? ' — ' + w.number : ''}</option>`;
+        const name = escapeHtml((lang === 'ar' && w.nameAr) ? w.nameAr : w.name);
+        opts += `<option value="${escapeHtml(w.id)}">${name}${w.number ? ' — ' + escapeHtml(w.number) : ''}</option>`;
       });
     }
     return opts;
@@ -494,7 +496,7 @@
         <div class="field-row"><div class="field"><label>${t('fullName')}</label><input required></div><div class="field"><label>${t('email')}</label><input type="email" required></div></div>
         <div class="field-row"><div class="field"><label>${t('address')}</label><input required></div></div>
         <div class="field-row"><div class="field"><label>${t('city')}</label><input required></div><div class="field"><label>${t('postal')}</label><input></div></div>
-        <div class="field-row"><div class="field"><label>${t('paymentMethod')}</label><select id="payMethod">${paymentOptionsHtml()}</select></div><div class="field"><label>${t('postal')}</label></div></div>
+        <div class="field-row"><div class="field"><label>${t('paymentMethod')}</label><select id="payMethod">${paymentOptionsHtml()}</select></div></div>
         <div class="checkout-summary"><div class="row"><span>${t('items')} (${cart.length})</span><span>${fmtPrice(subtotalValue())}</span></div><div class="row"><span>${t('shipping')}</span><span>${t('free')}</span></div><div class="row total"><span>${t('total')}</span><span>${fmtPrice(subtotalValue())}</span></div></div>
         <button type="submit" class="btn" style="width:100%; justify-content:center;">${t('reviewOrder')}</button>
       </form></div>`;
