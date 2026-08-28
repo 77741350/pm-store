@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM Store — لوحة التحكم</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --maroon:#7A1F2C; --maroon-deep:#4E1119; --maroon-bright:#A8283B; --gray:#58595B; --gray-light:#EDEBEA; --ink:#232323; --paper:#FFFFFF; --bg:#F6F5F3; --line:rgba(35,35,35,0.12); --green:#2E7D4F; --amber:#B8842E; }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'Tajawal','Inter',sans-serif; font-size:14px;}
+  h1,h2,h3{font-family:'Tajawal',sans-serif; font-weight:700; margin:0;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+  #loginGate{position:fixed; inset:0; background:var(--maroon-deep); display:flex; align-items:center; justify-content:center; z-index:500;}
+  .login-card{background:var(--paper); width:min(400px,92vw); padding:36px 30px; text-align:center;}
+  .login-card h2{font-size:1.35rem;}
+  .login-card p.note{color:var(--gray); font-size:0.82rem; margin:10px 0 20px;}
+  .login-card .field{text-align:right; margin-bottom:12px;}
+  .login-card label{font-size:0.75rem; color:var(--gray); display:block; margin-bottom:5px;}
+  .login-card input{width:100%; border:1px solid var(--line); padding:10px 12px; font-size:0.9rem;}
+  .login-card button{width:100%; background:var(--maroon); color:#fff; border:none; padding:12px; font-weight:700; margin-top:8px;}
+  .login-card .warn{background:var(--gray-light); font-size:0.73rem; color:var(--gray); padding:10px; margin-top:16px; text-align:right; line-height:1.5;}
+  #app{display:none; min-height:100vh; grid-template-columns:250px 1fr;}
+  #app.show{display:grid;}
+  aside.sidebar{background:var(--maroon-deep); color:#fff; padding:22px 16px; display:flex; flex-direction:column; overflow-y:auto;}
+  .side-logo{display:flex; align-items:center; gap:10px; margin-bottom:28px;}
+  .side-logo b{font-size:1.05rem;}
+  .side-nav{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:3px;}
+  .side-nav button{display:flex; align-items:center; gap:10px; width:100%; background:none; border:none; color:rgba(255,255,255,0.7); padding:10px 12px; font-size:0.86rem; text-align:right; border-radius:4px;}
+  .side-nav button:hover{background:rgba(255,255,255,0.06); color:#fff;}
+  .side-nav button.active{background:var(--maroon-bright); color:#fff;}
+  .side-foot{margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,0.14); font-size:0.78rem; color:rgba(255,255,255,0.55);}
+  .side-foot button{background:none; border:none; color:rgba(255,255,255,0.7); font-size:0.8rem; padding:0; margin-top:6px;}
+  main{padding:28px 32px 60px; overflow-x:auto;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;}
+  .topbar h1{font-size:1.4rem;}
+  .view{display:none;} .view.active{display:block;}
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px;}
+  .stat-card{background:var(--paper); border:1px solid var(--line); padding:18px;}
+  .stat-card .label{font-size:0.75rem; color:var(--gray); text-transform:uppercase;}
+  .stat-card .value{font-size:1.6rem; font-weight:800; margin-top:6px;}
+  .panel{background:var(--paper); border:1px solid var(--line); padding:20px; margin-bottom:20px;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
+  .btn{background:var(--maroon); color:#fff; border:none; padding:9px 16px; font-size:0.82rem; font-weight:700;}
+  .btn:hover{background:var(--maroon-deep);}
+  .btn-ghost{background:none; border:1px solid var(--line); color:var(--ink);}
+  .btn-sm{padding:6px 10px; font-size:0.75rem;}
+  table{width:100%; border-collapse:collapse; font-size:0.85rem;}
+  thead th{text-align:right; font-size:0.72rem; color:var(--gray); padding:10px 8px; border-bottom:1px solid var(--line);}
+  tbody td{padding:10px 8px; border-bottom:1px solid var(--line);}
+  tbody tr:hover{background:var(--bg);}
+  .row-actions button{background:none; border:none; font-size:0.78rem; color:var(--maroon); margin-left:8px; padding:0;}
+  .status-pill{padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:700;}
+  .status-pill.paid{background:#E4F1E9; color:var(--green);} .status-pill.pending{background:#F6EBD8; color:var(--amber);} .status-pill.low{background:#FBE7E9; color:var(--maroon);} .status-pill.ok{background:#E4F1E9; color:var(--green);}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
+  .form-field{display:flex; flex-direction:column; gap:5px;}
+  .form-field label{font-size:0.74rem; color:var(--gray); text-transform:uppercase; letter-spacing:0.04em;}
+  .form-field input,.form-field select,.form-field textarea{border:1px solid var(--line); padding:9px 10px; font-size:0.86rem;}
+  .form-field textarea{min-height:70px; resize:vertical;}
+  .form-field input:focus,.form-field select:focus,.form-field textarea:focus{outline:none; border-color:var(--maroon);}
+  .toggle{width:42px; height:24px; background:var(--gray-light); border-radius:20px; position:relative; cursor:pointer; border:none; flex-shrink:0;}
+  .toggle::after{content:''; position:absolute; top:3px; right:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform 0.25s ease; box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+  html[dir="ltr"] .toggle::after{right:auto; left:3px;}
+  .toggle.on{background:var(--green);} .toggle.on::after{transform:translateX(-18px);} html[dir="ltr"] .toggle.on::after{transform:translateX(18px);}
+  .setting-row{display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid var(--line); gap:16px;}
+  .toast{position:fixed; bottom:22px; right:22px; background:var(--ink); color:#fff; padding:12px 18px; font-size:0.85rem; border-radius:4px; opacity:0; transform:translateY(10px); transition:opacity 0.3s, transform 0.3s; z-index:600;}
+  .toast.show{opacity:1; transform:translateY(0);}
+  .modal-overlay{position:fixed; inset:0; background:rgba(35,35,35,0.5); z-index:400; opacity:0; visibility:hidden; transition:opacity 0.3s, visibility 0.3s; display:flex; align-items:center; justify-content:center; padding:16px;}
+  .modal-overlay.open{opacity:1; visibility:visible;}
+  .modal{background:#fff; width:min(580px,96vw); padding:26px; max-height:90vh; overflow-y:auto;}
+  .img-preview{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+  .img-preview img{width:70px; height:70px; object-fit:cover; border:1px solid var(--line);}
+  .img-preview .rm{position:absolute; top:-6px; right:-6px; background:var(--maroon); color:#fff; border:none; width:18px; height:18px; border-radius:50%; font-size:0.65rem; display:flex; align-items:center; justify-content:center;}
+  .wallet-icon{font-size:1.3rem;}
+  @media (max-width:900px){ #app.show{grid-template-columns:1fr;} aside.sidebar{display:none;} .stat-grid{grid-template-columns:1fr 1fr;} .form-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="login-card">
+    <h2>PM Store — لوحة التحكم</h2>
+    <p class="note">سجل دخولك لإدارة المنتجات والطلبات والمحافظ والإعلانات</p>
+    <form id="loginForm">
+      <div class="field"><label>البريد الإلكتروني</label><input id="loginEmail" type="email" required placeholder="admin@pmstore.com" value="admin@pmstore.com"></div>
+      <div class="field"><label>كلمة المرور</label><input id="loginPass" type="password" required placeholder="••••••••" value="Admin12345"></div>
+      <button type="submit">تسجيل الدخول</button>
+      <div id="loginErr" style="color:var(--maroon);font-size:0.8rem;margin-top:8px;display:none;"></div>
+    </form>
+    <div class="warn">الربط الخلفي مفعل — يتم التحقق عبر <span class="mono">/api/auth/login</span> ويُحفظ التوكن في الذاكرة. غيّر كلمة المرور الافتراضية فوراً من الإعدادات.</div>
+  </div>
+</div>
+
+<div id="app">
+  <aside class="sidebar">
+    <div class="side-logo"><b>PM Store</b> <span style="font-size:0.7rem;opacity:0.7;">Admin</span></div>
+    <ul class="side-nav">
+      <li><button class="active" data-view="dashboard">📊 لوحة التحكم</button></li>
+      <li><button data-view="products">📦 المنتجات والصور</button></li>
+      <li><button data-view="orders">🧾 الطلبات</button></li>
+      <li><button data-view="wallets">💳 المحافظ اليمنية</button></li>
+      <li><button data-view="social">📱 السوشيال والإعلانات</button></li>
+      <li><button data-view="users">👥 المستخدمون والصلاحيات</button></li>
+      <li><button data-view="settings">⚙️ الإعدادات (هاتف/لغة/عملة)</button></li>
+      <li><button data-view="security">🔒 الأمان</button></li>
+    </ul>
+    <div class="side-foot">
+      <div>مرحبا <b id="whoName">Admin</b></div><span id="whoEmail" class="mono">admin@pmstore.com</span><br><span id="whoRole" style="font-size:0.7rem;">super_admin</span>
+      <button id="logoutBtn">تسجيل خروج</button>
+    </div>
+  </aside>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="topbar"><h1>لوحة التحكم</h1><span class="mono" style="color:var(--gray);font-size:0.8rem;" id="dashPhone">+967775201234</span></div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label">الإيراد (30 يوم)</div><div class="value" id="statRevenue">$18,420</div><div style="color:var(--green);font-size:0.78rem;">▲ 12%</div></div>
+        <div class="stat-card"><div class="label">الطلبات</div><div class="value" id="statOrders">0</div></div>
+        <div class="stat-card"><div class="label">المنتجات</div><div class="value" id="statProducts">0</div></div>
+        <div class="stat-card"><div class="label">المحافظ النشطة</div><div class="value" id="statWallets">3</div></div>
+      </div>
+      <div class="panel"><div class="panel-head"><h3>آخر الطلبات</h3><button class="btn-ghost btn btn-sm" data-goto="orders">عرض الكل</button></div><table><thead><tr><th>الطلب</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th></tr></thead><tbody id="dashOrdersBody"></tbody></table></div>
+      <div class="panel"><div class="panel-head"><h3>تنبيهات المخزون</h3></div><table><thead><tr><th>المنتج</th><th>SKU</th><th>المخزون</th><th>الحالة</th></tr></thead><tbody id="dashStockBody"></tbody></table></div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="view" id="view-products">
+      <div class="topbar"><h1>المنتجات — صور متعددة + عملات</h1><button class="btn" id="addProductBtn">+ إضافة منتج</button></div>
+      <div class="panel"><div style="display:flex;gap:8px;margin-bottom:12px;"><input id="prodSearch" placeholder="بحث..." style="flex:1;border:1px solid var(--line);padding:8px 10px;"><select id="prodCatFilter" style="border:1px solid var(--line);padding:8px;"><option value="all">كل الأصناف</option><option value="smart">المنزل الذكي</option><option value="electronics">إلكترونيات</option><option value="appliances">أجهزة</option><option value="care">عناية</option></select></div>
+        <table><thead><tr><th>الصورة</th><th>الاسم (عربي / إنجليزي)</th><th>الصنف</th><th>السعر (USD / YER)</th><th>المخزون</th><th></th></tr></thead><tbody id="productsBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="view" id="view-orders">
+      <div class="topbar"><h1>الطلبات</h1><button class="btn btn-ghost btn-sm" id="refreshOrders">تحديث</button></div>
+      <div class="panel"><table><thead><tr><th>الطلب</th><th>العميل</th><th>التاريخ</th><th>الدفع</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+    </div>
+
+    <!-- WALLETS -->
+    <div class="view" id="view-wallets">
+      <div class="topbar"><h1>المحافظ الإلكترونية اليمنية</h1><button class="btn" id="addWalletBtn">+ إضافة محفظة</button></div>
+      <div class="panel" style="background:#FFF8E1; border-color:#FFE082;"><p style="margin:0; font-size:0.85rem;">المحافظ تظهر للعميل في <b>صفحة الأصناف</b> و <b>أسفل الصفحة (الفوتر)</b> و <b>صفحة الدفع</b>. يمكنك تفعيل/تعطيل أي محفظة، وتعديل الاسم، الرقم، والتعليمات. الافتراضية: <b>جيب، جوالي، الكريمي</b></p></div>
+      <div class="panel"><table><thead><tr><th>أيقونة</th><th>الاسم عربي</th><th>الاسم إنجليزي</th><th>الحساب/الرقم</th><th>نشط</th><th></th></tr></thead><tbody id="walletsBody"></tbody></table></div>
+      <div class="panel"><div class="panel-head"><h3>مكان الظهور</h3></div>
+        <div class="setting-row"><div><h4 style="margin:0;">إظهار في صفحة الأصناف</h4><p style="margin:4px 0 0;color:var(--gray);font-size:0.8rem;">قسم المحافظ أعلى المنتجات</p></div><button class="toggle on" id="toggleWalletsCat"></button></div>
+        <div class="setting-row"><div><h4 style="margin:0;">إظهار في أسفل الصفحة (الفوتر)</h4></div><button class="toggle on" id="toggleWalletsFooter"></button></div>
+      </div>
+    </div>
+
+    <!-- SOCIAL & ADS -->
+    <div class="view" id="view-social">
+      <div class="topbar"><h1>الربط بالسوشيال وتمويل الإعلانات</h1></div>
+      <div class="panel"><div class="panel-head"><h3>روابط المنصات + Meta Pixel</h3></div>
+        <div class="form-grid">
+          <div class="form-field"><label>فيسبوك</label><input id="s-fb" placeholder="https://facebook.com/..."></div>
+          <div class="form-field"><label>انستجرام</label><input id="s-ig" placeholder="https://instagram.com/..."></div>
+          <div class="form-field"><label>تيك توك</label><input id="s-tt" placeholder="https://tiktok.com/@..."></div>
+          <div class="form-field"><label>واتساب (رابط القناة)</label><input id="s-wa" placeholder="https://wa.me/967775201234"></div>
+          <div class="form-field"><label>Meta Pixel ID</label><input id="s-pixel" placeholder="1234567890"></div>
+          <div class="form-field"><label>TikTok Pixel ID</label><input id="s-tt-pixel" placeholder="..."></div>
+        </div>
+        <button class="btn" id="saveSocialBtn">حفظ الروابط</button>
+      </div>
+      <div class="panel"><div class="panel-head"><h3>تمويل الإعلانات — من مكان واحد</h3><span style="font-size:0.78rem;color:var(--gray);">يشحن الرصيد لكل منصة</span></div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:16px;" id="adsCards"></div>
+        <div class="form-grid">
+          <div class="form-field"><label>المنصة</label><select id="adsPlatform"><option value="meta">Meta (فيسبوك/انستجرام)</option><option value="tiktok">TikTok</option><option value="google">Google</option><option value="snapchat">Snapchat</option></select></div>
+          <div class="form-field"><label>المبلغ (USD)</label><input id="adsAmount" type="number" min="1" placeholder="50"></div>
+        </div>
+        <button class="btn" id="fundAdsBtn">تمويل الآن</button>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="view" id="view-users">
+      <div class="topbar"><h1>إدارة المستخدمين — عدة أشخاص</h1><button class="btn" id="addUserBtn">+ إضافة مدير</button></div>
+      <div class="panel"><p style="font-size:0.85rem;color:var(--gray);">يمكنك إضافة عدة مديرين والتحكم في الصلاحيات. الأدوار: <b>super_admin</b> (كل شيء)، <b>admin</b> (إدارة كاملة)، <b>editor</b> (منتجات وطلبات فقط).</p>
+        <table><thead><tr><th>الاسم</th><th>البريد</th><th>الدور</th><th>الحالة</th><th></th></tr></thead><tbody id="usersBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div class="topbar"><h1>الإعدادات العامة</h1><button class="btn" id="saveSettingsBtn">حفظ الإعدادات</button></div>
+      <div class="panel"><div class="panel-head"><h3>بيانات التواصل</h3></div>
+        <div class="form-grid">
+          <div class="form-field"><label>رقم الهاتف (مع +)</label><input id="set-phone" value="+967775201234"></div>
+          <div class="form-field"><label>واتساب</label><input id="set-wa" value="+967775201234"></div>
+          <div class="form-field"><label>البريد</label><input id="set-email" value="info@pmstore.com"></div>
+          <div class="form-field"><label>العنوان عربي</label><input id="set-addr-ar" value="صنعاء، اليمن"></div>
+          <div class="form-field"><label>العنوان إنجليزي</label><input id="set-addr-en" value="Sanaa, Yemen"></div>
+        </div>
+      </div>
+      <div class="panel"><div class="panel-head"><h3>اللغات</h3></div>
+        <div class="form-grid">
+          <div class="form-field"><label>اللغات المتاحة</label><select id="set-langs" multiple style="height:70px;"><option value="ar" selected>العربية</option><option value="en" selected>English</option></select></div>
+          <div class="form-field"><label>اللغة الافتراضية</label><select id="set-deflang"><option value="ar">العربية</option><option value="en">English</option></select></div>
+        </div>
+      </div>
+      <div class="panel"><div class="panel-head"><h3>العملات (تعدد العملة)</h3><button class="btn btn-ghost btn-sm" id="addCurrBtn">+ عملة</button></div>
+        <div id="currList"></div>
+        <p style="font-size:0.78rem;color:var(--gray);">السعر الأساسي بالريال اليمني، ويُحسب الباقي بالسعر المحدد (rate مقابل YER).</p>
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="view" id="view-security">
+      <div class="topbar"><h1>الأمان</h1></div>
+      <div class="panel"><div class="panel-head"><h3>تغيير كلمة المرور</h3></div>
+        <form id="pwForm"><div class="form-grid"><div class="form-field"><label>كلمة المرور الحالية</label><input type="password" id="pw-old" required></div><div class="form-field"></div><div class="form-field"><label>الجديدة</label><input type="password" id="pw-new" required></div><div class="form-field"><label>تأكيد الجديدة</label><input type="password" id="pw-confirm" required></div></div><button type="submit" class="btn">تحديث</button></form>
+      </div>
+      <div class="panel"><div class="panel-head"><h3>الدومين والسيرفر</h3></div>
+        <div style="font-size:0.86rem; line-height:1.7; color:var(--gray);">
+          <p><b>الدومين:</b> اربط <span class="mono">pmstore.com</span> عبر DNS: <span class="mono">CNAME</span> للواجهة (Vercel/Netlify) و <span class="mono">api.pmstore.com → Render/Railway</span>. فعّل HTTPS التلقائي.</p>
+          <p><b>السيرفر:</b> هذا الباك-إند جاهز للنشر — اضبط <span class="mono">ALLOWED_ORIGINS</span> و <span class="mono">JWT_SECRET</span> و <span class="mono">ADMIN_EMAIL</span> في متغيرات البيئة.</p>
+          <p><b>الصحة:</b> <a href="/api/health" target="_blank" style="color:var(--maroon);text-decoration:underline;">/api/health</a></p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Product Modal -->
+<div class="modal-overlay" id="productModalOverlay"><div class="modal">
+  <h3 id="productModalTitle">إضافة منتج</h3>
+  <form id="productForm">
+    <div class="form-grid">
+      <div class="form-field"><label>الاسم عربي</label><input id="pf-name-ar" required></div>
+      <div class="form-field"><label>Name English</label><input id="pf-name-en" required></div>
+      <div class="form-field"><label>الصنف</label><select id="pf-cat"><option value="smart">المنزل الذكي</option><option value="electronics">إلكترونيات</option><option value="appliances">أجهزة</option><option value="care">عناية</option></select></div>
+      <div class="form-field"><label>SKU</label><input id="pf-sku" placeholder="PMS-1001"></div>
+      <div class="form-field"><label>السعر USD</label><input id="pf-price" type="number" step="0.01" min="0" required></div>
+      <div class="form-field"><label>السعر YER (ريال يمني)</label><input id="pf-price-yer" type="number" min="0" required></div>
+      <div class="form-field"><label>المخزون</label><input id="pf-stock" type="number" min="0" required></div>
+      <div class="form-field"><label>نشط</label><select id="pf-active"><option value="true">نعم</option><option value="false">لا</option></select></div>
+      <div class="form-field"><label>شعار المنتج (اختياري)</label><input id="pf-badge" placeholder="مثال: 🔥 خصم 25% / جديد / مميز"></div>
+    </div>
+    <div class="form-field"><label>صور المنتج (حتى 5) — يمكن إضافتها من الأدمن</label><input id="pf-images" type="file" accept="image/*" multiple><div class="img-preview" id="pf-preview"></div></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;"><button type="button" class="btn btn-ghost" id="productModalCancel">إلغاء</button><button type="submit" class="btn">حفظ</button></div>
+  </form>
+</div></div>
+
+<!-- Wallet Modal -->
+<div class="modal-overlay" id="walletModalOverlay"><div class="modal">
+  <h3 id="walletModalTitle">إضافة محفظة</h3>
+  <form id="walletForm">
+    <div class="form-grid">
+      <div class="form-field"><label>الاسم عربي</label><input id="wf-name-ar" required></div>
+      <div class="form-field"><label>Name English</label><input id="wf-name-en" required></div>
+      <div class="form-field"><label>Slug (مثال: jeeb)</label><input id="wf-slug" required></div>
+      <div class="form-field"><label>الأيقونة (emoji)</label><input id="wf-icon" placeholder="💳"></div>
+      <div class="form-field"><label>الحساب / الرقم</label><input id="wf-account" placeholder="775201234"></div>
+      <div class="form-field"><label>نشط</label><select id="wf-active"><option value="true">نعم</option><option value="false">لا</option></select></div>
+      <div class="form-field"><label>تعليمات عربي</label><textarea id="wf-inst-ar"></textarea></div>
+      <div class="form-field"><label>Instructions EN</label><textarea id="wf-inst-en"></textarea></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;"><button type="button" class="btn btn-ghost" id="walletModalCancel">إلغاء</button><button type="submit" class="btn">حفظ</button></div>
+  </form>
+</div></div>
+
+<!-- User Modal -->
+<div class="modal-overlay" id="userModalOverlay"><div class="modal">
+  <h3>إضافة مدير</h3>
+  <form id="userForm">
+    <div class="form-grid">
+      <div class="form-field"><label>الاسم</label><input id="uf-name" required></div>
+      <div class="form-field"><label>البريد</label><input id="uf-email" type="email" required></div>
+      <div class="form-field"><label>كلمة المرور</label><input id="uf-pass" type="password" required></div>
+      <div class="form-field"><label>الدور</label><select id="uf-role"><option value="admin">admin</option><option value="editor">editor</option><option value="super_admin">super_admin</option></select></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;"><button type="button" class="btn btn-ghost" id="userModalCancel">إلغاء</button><button type="submit" class="btn">إضافة</button></div>
+  </form>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+console.log('[PM-ADMIN] script loaded, origin =', location.origin, 'protocol =', location.protocol);
+const API = (location.protocol === 'file:' || location.protocol === '') ? 'http://localhost:4000' : location.origin;
+console.log('[PM-ADMIN] API base =', API);
+let token = null; // kept in memory
+let currentUser = null;
+let wallets=[], products=[], orders=[], users=[], settings=null;
+let editProductId=null, editWalletId=null;
+let pendingImages=[]; // base64
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+function authHeaders(){ return token ? { 'Authorization':'Bearer '+token, 'Content-Type':'application/json' } : { 'Content-Type':'application/json' }; }
+async function apiFetch(url, opts={}){
+  opts.headers = { ...(opts.headers||{}), ...(token?{Authorization:'Bearer '+token}:{}), 'Content-Type':'application/json' };
+  const res=await fetch(url, opts);
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error||'Request failed');
+  return data;
+}
+
+// Login
+document.getElementById('loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email=document.getElementById('loginEmail').value.trim();
+  const password=document.getElementById('loginPass').value;
+  document.getElementById('loginErr').style.display='none';
+  try{
+    const res=await fetch(API+'/api/auth/login',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'خطأ');
+    token=data.token; currentUser=data.user;
+    document.getElementById('whoEmail').textContent=currentUser.email;
+    document.getElementById('whoName').textContent=currentUser.name;
+    document.getElementById('whoRole').textContent=currentUser.role;
+    document.getElementById('loginGate').style.display='none';
+    document.getElementById('app').classList.add('show');
+    loadAll();
+  }catch(err){ const el=document.getElementById('loginErr'); el.textContent=err.message; el.style.display='block'; }
+});
+document.getElementById('logoutBtn').addEventListener('click',()=>{ token=null; currentUser=null; document.getElementById('app').classList.remove('show'); document.getElementById('loginGate').style.display='flex'; });
+
+// Nav
+document.querySelectorAll('.side-nav button').forEach(btn=>{
+  btn.addEventListener('click',()=> switchView(btn.dataset.view));
+});
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.goto)));
+function switchView(v){
+  document.querySelectorAll('.side-nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active', el.id==='view-'+v));
+  if(v==='products') loadProducts();
+  if(v==='orders') loadOrders();
+  if(v==='wallets') loadWallets();
+  if(v==='users') loadUsers();
+  if(v==='social') loadSocial();
+  if(v==='settings') loadSettings();
+}
+
+async function loadAll(){
+  try{ await Promise.all([loadProducts(), loadOrders(), loadWallets(), loadUsers(), loadSettings(), loadSocial()]); renderDashboard(); }catch(e){ console.error(e); }
+}
+
+// Products
+async function loadProducts(){
+  try{
+    const search=document.getElementById('prodSearch')?.value||'';
+    const cat=document.getElementById('prodCatFilter')?.value||'all';
+    let url=API+'/api/products?';
+    if(search) url+='search='+encodeURIComponent(search)+'&';
+    if(cat && cat!=='all') url+='category='+cat;
+    products=await apiFetch(url);
+    document.getElementById('statProducts').textContent=products.length;
+    renderProducts(); renderDashboardStock();
+  }catch(e){ // fallback
+    products=products||[];
+    renderProducts();
+  }
+}
+function renderProducts(){
+  const tbody=document.getElementById('productsBody');
+  const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
+  let list=products;
+  if(q) list=list.filter(p=> (p.name_ar&&p.name_ar.includes(q)) || (p.name_en&&p.name_en.toLowerCase().includes(q)) );
+  tbody.innerHTML=list.map(p=>`
+    <tr>
+      <td>${p.images&&p.images[0]?`<img src="${p.images[0]}" style="width:48px;height:48px;object-fit:cover;border:1px solid var(--line);">`:'—'}</td>
+      <td><div style="font-weight:700;">${p.name_ar||p.name}</div><div style="color:var(--gray);font-size:0.78rem;">${p.name_en||''}</div></td>
+      <td>${p.category}</td>
+      <td><span class="mono">$${p.price}</span><br><span class="mono" style="color:var(--maroon);">${(p.priceYER||0).toLocaleString()} ﷼</span></td>
+      <td>${p.stock} ${p.stock<=5?'<span class="status-pill low">منخفض</span>':'<span class="status-pill ok">متوفر</span>'}</td>
+      <td class="row-actions"><button data-edit="${p.id}">تعديل</button><button data-del="${p.id}">حذف</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--gray);">لا توجد منتجات</td></tr>';
+  tbody.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openProductModal(+b.dataset.edit)));
+  tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{
+    if(!confirm('حذف المنتج؟')) return;
+    try{ await apiFetch(API+'/api/products/'+b.dataset.del,{method:'DELETE'}); toast('تم الحذف'); loadProducts(); }catch(e){toast(e.message);}
+  }));
+}
+document.getElementById('prodSearch')?.addEventListener('input', renderProducts);
+document.getElementById('prodCatFilter')?.addEventListener('change', loadProducts);
+
+// Product modal + images
+const pOverlay=document.getElementById('productModalOverlay');
+document.getElementById('addProductBtn').addEventListener('click',()=>openProductModal(null));
+document.getElementById('productModalCancel').addEventListener('click',()=>pOverlay.classList.remove('open'));
+function openProductModal(id){
+  editProductId=id;
+  const isEdit=id!==null;
+  document.getElementById('productModalTitle').textContent=isEdit?'تعديل منتج':'إضافة منتج';
+  const p=isEdit? products.find(x=>x.id===id) : {name_ar:'',name_en:'',category:'smart',price:'',priceYER:'',stock:'',sku:'',badge:'', images:[]};
+  document.getElementById('pf-name-ar').value=p.name_ar||p.name||'';
+  document.getElementById('pf-name-en').value=p.name_en||'';
+  document.getElementById('pf-cat').value=p.category||'smart';
+  document.getElementById('pf-price').value=p.price||'';
+  document.getElementById('pf-price-yer').value=p.priceYER||'';
+  document.getElementById('pf-stock').value=p.stock||'';
+  document.getElementById('pf-sku').value=p.sku||'';
+  document.getElementById('pf-badge').value=p.badge||'';
+  document.getElementById('pf-active').value= String(p.active!==false);
+  pendingImages = p.images ? [...p.images] : [];
+  renderPreview();
+  pOverlay.classList.add('open');
+}
+function renderPreview(){
+  const box=document.getElementById('pf-preview');
+  box.innerHTML=pendingImages.map((src,i)=>`<div style="position:relative;"><img src="${src}"><button type="button" class="rm" data-i="${i}">×</button></div>`).join('');
+  box.querySelectorAll('.rm').forEach(b=>b.addEventListener('click',()=>{ pendingImages.splice(+b.dataset.i,1); renderPreview(); }));
+}
+document.getElementById('pf-images').addEventListener('change', async e=>{
+  const files=[...e.target.files].slice(0,5-pendingImages.length);
+  for(const f of files){
+    const b64=await fileToBase64(f);
+    pendingImages.push(b64);
+  }
+  renderPreview();
+  e.target.value='';
+});
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+document.getElementById('productForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const payload={
+    name_ar: document.getElementById('pf-name-ar').value,
+    name_en: document.getElementById('pf-name-en').value,
+    name: document.getElementById('pf-name-ar').value,
+    category: document.getElementById('pf-cat').value,
+    price: +document.getElementById('pf-price').value,
+    priceYER: +document.getElementById('pf-price-yer').value,
+    stock: +document.getElementById('pf-stock').value,
+    sku: document.getElementById('pf-sku').value || undefined,
+    badge: document.getElementById('pf-badge').value.trim() || undefined,
+    images: pendingImages,
+    active: document.getElementById('pf-active').value==='true'
+  };
+  try{
+    if(editProductId!==null) await apiFetch(API+'/api/products/'+editProductId,{method:'PUT', body:JSON.stringify(payload)});
+    else await apiFetch(API+'/api/products',{method:'POST', body:JSON.stringify(payload)});
+    pOverlay.classList.remove('open');
+    toast(editProductId!==null?'تم التحديث':'تمت الإضافة');
+    loadProducts();
+  }catch(err){ toast(err.message); }
+});
+
+// Orders
+async function loadOrders(){
+  try{
+    orders=await apiFetch(API+'/api/orders');
+    document.getElementById('statOrders').textContent=orders.length;
+    document.getElementById('ordersBody').innerHTML=orders.map(o=>`
+      <tr><td class="mono">${o.id}</td><td>${o.shipping?.name||o.customer||'—'}</td><td>${(o.createdAt||'').slice(0,10)}</td><td>${o.paymentMethod||'cod'} ${o.walletId?'('+o.walletId+')':''}</td><td class="mono">${o.total} ${o.currency||'YER'}</td><td><select data-status="${o.id}" style="border:1px solid var(--line);padding:4px;"><option value="pending" ${o.status==='pending'?'selected':''}>pending</option><option value="paid" ${o.status==='paid'?'selected':''}>paid</option><option value="shipped" ${o.status==='shipped'?'selected':''}>shipped</option><option value="cancelled" ${o.status==='cancelled'?'selected':''}>cancelled</option></select></td><td><span class="status-pill ${o.status==='paid'?'paid':'pending'}">${o.status}</span></td></tr>
+    `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--gray);">لا توجد طلبات</td></tr>';
+    document.getElementById('ordersBody').querySelectorAll('select[data-status]').forEach(s=>s.addEventListener('change', async()=>{
+      try{ await apiFetch(API+'/api/orders/'+s.dataset.status+'/status',{method:'PUT', body:JSON.stringify({status:s.value})}); toast('تم تحديث الحالة'); loadOrders(); }catch(e){toast(e.message);}
+    }));
+    // dash
+    document.getElementById('dashOrdersBody').innerHTML=orders.slice(0,4).map(o=>`<tr><td class="mono">${o.id}</td><td>${o.shipping?.name||'—'}</td><td>${o.total}</td><td><span class="status-pill ${o.status==='paid'?'paid':'pending'}">${o.status}</span></td></tr>`).join('') || '<tr><td colspan="4">—</td></tr>';
+  }catch(e){ console.error(e); }
+}
+document.getElementById('refreshOrders').addEventListener('click', loadOrders);
+function renderDashboardStock(){
+  const low=products.filter(p=>p.stock<=5);
+  document.getElementById('dashStockBody').innerHTML=low.map(p=>`<tr><td>${p.name_ar||p.name}</td><td class="mono">${p.sku}</td><td>${p.stock}</td><td><span class="status-pill low">منخفض</span></td></tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--gray);">المخزون جيد</td></tr>';
+}
+function renderDashboard(){
+  document.getElementById('dashPhone').textContent=settings?settings.phone:'+967775201234';
+}
+
+// Wallets
+async function loadWallets(){
+  try{
+    wallets=await apiFetch(API+'/api/wallets/all');
+    document.getElementById('statWallets').textContent=wallets.filter(w=>w.active).length;
+    const tbody=document.getElementById('walletsBody');
+    tbody.innerHTML=wallets.map(w=>`
+      <tr>
+        <td class="wallet-icon">${w.icon||'💳'}</td>
+        <td>${w.name_ar}</td><td>${w.name_en}</td>
+        <td class="mono">${w.account||'—'}</td>
+        <td>${w.active?'<span class="status-pill ok">نشط</span>':'<span class="status-pill pending">متوقف</span>'}</td>
+        <td class="row-actions"><button data-edit-w="${w.id}">تعديل</button><button data-del-w="${w.id}">حذف</button></td>
+      </tr>
+    `).join('');
+    tbody.querySelectorAll('[data-edit-w]').forEach(b=>b.addEventListener('click',()=>openWalletModal(+b.dataset.editW)));
+    tbody.querySelectorAll('[data-del-w]').forEach(b=>b.addEventListener('click',async()=>{
+      if(!confirm('حذف المحفظة؟')) return;
+      try{ await apiFetch(API+'/api/wallets/'+b.dataset.delW,{method:'DELETE'}); toast('تم الحذف'); loadWallets(); }catch(e){toast(e.message);}
+    }));
+    // toggles
+    if(settings){
+      document.getElementById('toggleWalletsCat').classList.toggle('on', settings.showWalletsInCategories);
+      document.getElementById('toggleWalletsFooter').classList.toggle('on', settings.showWalletsInFooter);
+    }
+  }catch(e){ console.error(e); }
+}
+const wOverlay=document.getElementById('walletModalOverlay');
+document.getElementById('addWalletBtn').addEventListener('click',()=>openWalletModal(null));
+document.getElementById('walletModalCancel').addEventListener('click',()=>wOverlay.classList.remove('open'));
+function openWalletModal(id){
+  editWalletId=id;
+  const isEdit=id!==null;
+  document.getElementById('walletModalTitle').textContent=isEdit?'تعديل محفظة':'إضافة محفظة';
+  const w=isEdit? wallets.find(x=>x.id===id) : {name_ar:'',name_en:'',slug:'',icon:'💳',account:'',active:true,instructions_ar:'',instructions_en:''};
+  document.getElementById('wf-name-ar').value=w.name_ar||'';
+  document.getElementById('wf-name-en').value=w.name_en||'';
+  document.getElementById('wf-slug').value=w.slug||'';
+  document.getElementById('wf-icon').value=w.icon||'';
+  document.getElementById('wf-account').value=w.account||'';
+  document.getElementById('wf-active').value=String(w.active!==false);
+  document.getElementById('wf-inst-ar').value=w.instructions_ar||'';
+  document.getElementById('wf-inst-en').value=w.instructions_en||'';
+  wOverlay.classList.add('open');
+}
+document.getElementById('walletForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const payload={
+    name_ar: document.getElementById('wf-name-ar').value,
+    name_en: document.getElementById('wf-name-en').value,
+    slug: document.getElementById('wf-slug').value,
+    icon: document.getElementById('wf-icon').value||'💳',
+    account: document.getElementById('wf-account').value,
+    active: document.getElementById('wf-active').value==='true',
+    instructions_ar: document.getElementById('wf-inst-ar').value,
+    instructions_en: document.getElementById('wf-inst-en').value,
+  };
+  try{
+    if(editWalletId!==null) await apiFetch(API+'/api/wallets/'+editWalletId,{method:'PUT', body:JSON.stringify(payload)});
+    else await apiFetch(API+'/api/wallets',{method:'POST', body:JSON.stringify(payload)});
+    wOverlay.classList.remove('open');
+    toast(editWalletId!==null?'تم التحديث':'تمت الإضافة');
+    loadWallets();
+  }catch(err){ toast(err.message); }
+});
+document.getElementById('toggleWalletsCat').addEventListener('click', async function(){
+  this.classList.toggle('on');
+  try{ await apiFetch(API+'/api/settings',{method:'PUT', body:JSON.stringify({showWalletsInCategories:this.classList.contains('on')})}); toast('تم الحفظ'); }catch(e){toast(e.message);}
+});
+document.getElementById('toggleWalletsFooter').addEventListener('click', async function(){
+  this.classList.toggle('on');
+  try{ await apiFetch(API+'/api/settings',{method:'PUT', body:JSON.stringify({showWalletsInFooter:this.classList.contains('on')})}); toast('تم الحفظ'); }catch(e){toast(e.message);}
+});
+
+// Social & Ads
+async function loadSocial(){
+  try{
+    const s=await apiFetch(API+'/api/settings');
+    settings=s;
+    document.getElementById('s-fb').value=s.social.facebook||'';
+    document.getElementById('s-ig').value=s.social.instagram||'';
+    document.getElementById('s-tt').value=s.social.tiktok||'';
+    document.getElementById('s-wa').value=s.social.whatsappChannel||'';
+    document.getElementById('s-pixel').value=s.social.metaPixelId||'';
+    document.getElementById('s-tt-pixel').value=s.social.tiktokPixelId||'';
+    renderAds(s.ads);
+  }catch(e){}
+}
+function renderAds(ads){
+  if(!ads) return;
+  const box=document.getElementById('adsCards');
+  const platforms={meta:'Meta (فيسبوك/انستجرام)', tiktok:'TikTok', google:'Google', snapchat:'Snapchat'};
+  box.innerHTML=Object.entries(ads).map(([k,v])=>`
+    <div style="background:var(--bg);border:1px solid var(--line);padding:16px;">
+      <div style="font-weight:700;">${platforms[k]||k}</div>
+      <div style="font-size:0.82rem;color:var(--gray);margin-top:4px;">الرصيد: <b class="mono">$${v.budget||0}</b> — ${v.enabled?'مفعل':'متوقف'}</div>
+      ${v.lastFundedAt?`<div style="font-size:0.72rem;color:var(--gray);">آخر تمويل: ${v.lastFundedAt.slice(0,10)}</div>`:''}
+    </div>
+  `).join('');
+}
+document.getElementById('saveSocialBtn').addEventListener('click', async()=>{
+  const payload={ social:{ facebook:document.getElementById('s-fb').value, instagram:document.getElementById('s-ig').value, tiktok:document.getElementById('s-tt').value, whatsappChannel:document.getElementById('s-wa').value, metaPixelId:document.getElementById('s-pixel').value, tiktokPixelId:document.getElementById('s-tt-pixel').value } };
+  try{ settings=await apiFetch(API+'/api/settings',{method:'PUT', body:JSON.stringify(payload)}); toast('تم حفظ الروابط'); }catch(e){toast(e.message);}
+});
+document.getElementById('fundAdsBtn').addEventListener('click', async()=>{
+  const platform=document.getElementById('adsPlatform').value;
+  const amount=+document.getElementById('adsAmount').value;
+  if(!amount || amount<1) return toast('أدخل مبلغ صحيح');
+  try{
+    const res=await apiFetch(API+'/api/ads/fund',{method:'POST', body:JSON.stringify({platform, amount})});
+    toast('تم التمويل: $'+amount+' → '+platform);
+    renderAds(res.ads);
+  }catch(e){toast(e.message);}
+});
+
+// Users
+async function loadUsers(){
+  try{
+    users=await apiFetch(API+'/api/users');
+    const tbody=document.getElementById('usersBody');
+    tbody.innerHTML=users.map(u=>`
+      <tr><td>${u.name}</td><td class="mono">${u.email}</td><td>${u.role}</td><td>${u.active?'<span class="status-pill ok">نشط</span>':'<span class="status-pill pending">موقوف</span>'}</td><td class="row-actions"><button data-toggle-u="${u.id}">${u.active?'إيقاف':'تفعيل'}</button><button data-del-u="${u.id}">حذف</button></td></tr>
+    `).join('');
+    tbody.querySelectorAll('[data-toggle-u]').forEach(b=>b.addEventListener('click', async()=>{
+      const u=users.find(x=>x.id==b.dataset.toggleU);
+      try{ await apiFetch(API+'/api/users/'+u.id,{method:'PUT', body:JSON.stringify({active:!u.active})}); toast('تم التحديث'); loadUsers(); }catch(e){toast(e.message);}
+    }));
+    tbody.querySelectorAll('[data-del-u]').forEach(b=>b.addEventListener('click', async()=>{
+      if(!confirm('حذف المستخدم؟')) return;
+      try{ await apiFetch(API+'/api/users/'+b.dataset.delU,{method:'DELETE'}); toast('تم الحذف'); loadUsers(); }catch(e){toast(e.message);}
+    }));
+  }catch(e){ console.error(e); }
+}
+const uOverlay=document.getElementById('userModalOverlay');
+document.getElementById('addUserBtn').addEventListener('click',()=>uOverlay.classList.add('open'));
+document.getElementById('userModalCancel').addEventListener('click',()=>uOverlay.classList.remove('open'));
+document.getElementById('userForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const payload={ name:document.getElementById('uf-name').value, email:document.getElementById('uf-email').value, password:document.getElementById('uf-pass').value, role:document.getElementById('uf-role').value };
+  try{ await apiFetch(API+'/api/users',{method:'POST', body:JSON.stringify(payload)}); uOverlay.classList.remove('open'); e.target.reset(); toast('تمت إضافة المدير'); loadUsers(); }catch(err){toast(err.message);}
+});
+
+// Settings
+async function loadSettings(){
+  try{
+    settings=await apiFetch(API+'/api/settings');
+    document.getElementById('set-phone').value=settings.phone||'+967775201234';
+    document.getElementById('set-wa').value=settings.whatsapp||'+967775201234';
+    document.getElementById('set-email').value=settings.email||'';
+    document.getElementById('set-addr-ar').value=settings.address_ar||'';
+    document.getElementById('set-addr-en').value=settings.address_en||'';
+    document.getElementById('set-deflang').value=settings.defaultLang||'ar';
+    renderCurrList();
+  }catch(e){}
+}
+function renderCurrList(){
+  if(!settings || !settings.currencies) return;
+  const box=document.getElementById('currList');
+  box.innerHTML=settings.currencies.map((c,i)=>`
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px; background:var(--bg); padding:10px; border:1px solid var(--line);">
+      <input value="${c.code}" placeholder="CODE" data-ci="${i}" data-k="code" style="border:1px solid var(--line);padding:6px;">
+      <input value="${c.symbol}" placeholder="رمز" data-ci="${i}" data-k="symbol" style="border:1px solid var(--line);padding:6px;">
+      <input type="number" step="0.0001" value="${c.rate}" placeholder="rate" data-ci="${i}" data-k="rate" style="border:1px solid var(--line);padding:6px;">
+      <button class="btn btn-ghost btn-sm" data-del-curr="${i}">حذف</button>
+    </div>
+  `).join('');
+  box.querySelectorAll('input[data-ci]').forEach(inp=>inp.addEventListener('change',()=>{
+    const idx=+inp.dataset.ci; const k=inp.dataset.k; let v=inp.value; if(k==='rate') v=parseFloat(v); settings.currencies[idx][k]=v;
+  }));
+  box.querySelectorAll('[data-del-curr]').forEach(b=>b.addEventListener('click',()=>{ settings.currencies.splice(+b.dataset.delCurr,1); renderCurrList(); }));
+}
+document.getElementById('addCurrBtn').addEventListener('click',()=>{ settings.currencies.push({code:'',symbol:'',rate:1}); renderCurrList(); });
+document.getElementById('saveSettingsBtn').addEventListener('click', async()=>{
+  const payload={
+    phone: document.getElementById('set-phone').value,
+    whatsapp: document.getElementById('set-wa').value,
+    email: document.getElementById('set-email').value,
+    address_ar: document.getElementById('set-addr-ar').value,
+    address_en: document.getElementById('set-addr-en').value,
+    defaultLang: document.getElementById('set-deflang').value,
+    currencies: settings.currencies
+  };
+  try{ settings=await apiFetch(API+'/api/settings',{method:'PUT', body:JSON.stringify(payload)}); toast('تم حفظ الإعدادات — الرقم الجديد: '+payload.phone); }catch(e){toast(e.message);}
+});
+
+// Security password change (mock - uses users endpoint)
+document.getElementById('pwForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const oldp=document.getElementById('pw-old').value;
+  const np=document.getElementById('pw-new').value;
+  const cp=document.getElementById('pw-confirm').value;
+  if(np!==cp) return toast('كلمتا المرور غير متطابقتين');
+  try{
+    // verify old by login
+    const res=await fetch(API+'/api/auth/login',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:currentUser.email, password:oldp})});
+    if(!res.ok) throw new Error('كلمة المرور الحالية غير صحيحة');
+    await apiFetch(API+'/api/users/'+currentUser.id,{method:'PUT', body:JSON.stringify({password:np})});
+    toast('تم تحديث كلمة المرور');
+    e.target.reset();
+  }catch(err){ toast(err.message); }
+});
+</script>
+</body>
+</html>
