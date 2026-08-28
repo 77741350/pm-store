@@ -383,3 +383,13 @@ app.use((err,req,res,next)=>{
 });
 
 app.listen(PORT, ()=> console.log(`PM Store API v2 listening on ${PORT} (${isProd?'production':'development'}) Phone:+967775201234`));
+
+// ---------- Keep-alive (Render free tier) ----------
+// Render spins down after 15 min of inactivity, wiping in-memory data.
+// Ping ourselves more often than that so the service never sleeps.
+if (isProd && process.env.RENDER_EXTERNAL_URL) {
+  const selfUrl = process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '');
+  const ping = () => fetch(selfUrl + '/api/health').catch(() => {});
+  setInterval(ping, 10 * 60 * 1000); // every 10 min (< 15 min idle threshold)
+  console.log(`Keep-alive enabled -> ${selfUrl}/api/health`);
+}
