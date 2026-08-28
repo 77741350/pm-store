@@ -13,21 +13,12 @@ services:
         value: 10000
       - key: JWT_SECRET
         generateValue: true
-      - key: DATABASE_URL
-        fromService:
-          type: postgres
-          name: pm-store-db
-          property: connectionString
       - key: ADMIN_EMAIL
         value: admin@pmstore.com
       - key: ADMIN_PASSWORD_HASH
         value: $2a$10$RyBPaiYamMamNiOwBHpaCeoRzn1jHO2qMxPbSrHHz7uJ74xP.M4qu
       - key: ALLOWED_ORIGINS
         value: "*"
-
-databases:
-  - name: pm-store-db
-    plan: free
-    databaseName: pmstore
-    user: pmstore
-    postgresMajorVersion: "15"
+      # Set DATABASE_URL in the Render dashboard (Environment) to a Neon/Postgres
+      # connection string to enable real persistence. Without it the app runs in
+      # memory mode (data resets on restart).

@@ -218,7 +218,7 @@ function defaultSettings() {
 
 // ---------- Data access helpers ----------
 async function getSettings() {
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT data FROM settings WHERE id=1');
     return r.rows[0]?.data || defaultSettings();
   }
@@ -235,14 +235,14 @@ function signToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET || 'dev-secret-change-me-please-32chars', { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
 }
 async function findByEmail(email) {
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT * FROM users WHERE email=$1', [email.toLowerCase()]);
     return r.rows[0] || null;
   }
   return mem.users.find((u) => u.email === email.toLowerCase()) || null;
 }
 async function findUserById(id) {
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT * FROM users WHERE id=$1', [id]);
     return r.rows[0] || null;
   }
@@ -275,13 +275,13 @@ function requireRole(...roles) {
 }
 
 // ---------- Health ----------
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString(), version: '3.0', db: USE_DB ? 'postgres' : 'memory' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString(), version: '3.0', db: dbLive ? 'postgres' : 'memory' }));
 
 // Public settings & wallets
 app.get('/api/settings', async (req, res) => res.json(await getSettings()));
 app.get('/api/wallets', async (req, res) => {
   let list;
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT * FROM wallets WHERE active=true ORDER BY sort ASC');
     list = r.rows;
   } else {
@@ -290,7 +290,7 @@ app.get('/api/wallets', async (req, res) => {
   res.json(list);
 });
 app.get('/api/wallets/all', requireAuth, async (req, res) => {
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT * FROM wallets ORDER BY sort ASC');
     return res.json(r.rows);
   }
@@ -301,7 +301,7 @@ app.get('/api/wallets/all', requireAuth, async (req, res) => {
 app.get('/api/products', async (req, res) => {
   const q = (req.query.search || '').toLowerCase();
   let list;
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT * FROM products WHERE active=true');
     list = r.rows;
   } else {
@@ -313,7 +313,7 @@ app.get('/api/products', async (req, res) => {
 });
 app.get('/api/products/:id', async (req, res) => {
   let p;
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT * FROM products WHERE id=$1', [Number(req.params.id)]);
     p = r.rows[0];
   } else {
@@ -346,7 +346,7 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // ---------- Users management ----------
 app.get('/api/users', requireAuth, requireRole('super_admin', 'admin'), async (req, res) => {
   let users;
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT id,name,email,role,permissions,active,created_at FROM users');
     users = r.rows;
   } else {
@@ -366,7 +366,7 @@ app.post('/api/users', requireAuth, requireRole('super_admin'),
     if (await findByEmail(email)) return res.status(409).json({ error: 'Email already exists' });
     const hash = await bcrypt.hash(password, 10);
     const perms = permissions || (role === 'admin' ? ['*'] : ['products:read', 'products:write', 'orders:read']);
-    if (USE_DB) {
+    if (dbLive) {
       const r = await pool.query(
         'INSERT INTO users(name,email,password_hash,role,permissions,active) VALUES($1,$2,$3,$4,$5,true) RETURNING id,name,email,role',
         [name, email.toLowerCase(), hash, role, perms]
@@ -392,7 +392,7 @@ app.put('/api/users/:id', requireAuth, requireRole('super_admin'),
     if (req.body.permissions) { fields.push(`permissions=$${i++}`); vals.push(req.body.permissions); }
     if (typeof req.body.active === 'boolean') { fields.push(`active=$${i++}`); vals.push(req.body.active); }
     if (req.body.password) { fields.push(`password_hash=$${i++}`); vals.push(await bcrypt.hash(req.body.password, 10)); }
-    if (USE_DB) {
+    if (dbLive) {
       vals.push(u.id);
       const r = await pool.query(`UPDATE users SET ${fields.join(',')} WHERE id=$${i} RETURNING id,name,email,role,active`, vals);
       return res.json(r.rows[0]);
@@ -424,7 +424,7 @@ app.post('/api/wallets', requireAuth,
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
     const { name_ar, name_en, slug, account, instructions_ar, instructions_en, icon, active } = req.body;
     const sort = req.body.sort != null ? req.body.sort : (await maxSort()) + 1;
-    if (USE_DB) {
+    if (dbLive) {
       const r = await pool.query(
         'INSERT INTO wallets(name_ar,name_en,slug,account,instructions_ar,instructions_en,icon,active,sort) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
         [name_ar, name_en, slug.toLowerCase().replace(/\s+/g, '-'), account || '', instructions_ar || '', instructions_en || '', icon || '💳', active !== false, sort]
@@ -438,7 +438,7 @@ app.post('/api/wallets', requireAuth,
 );
 app.put('/api/wallets/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
-  if (USE_DB) {
+  if (dbLive) {
     const cur = await pool.query('SELECT * FROM wallets WHERE id=$1', [id]);
     if (!cur.rows[0]) return res.status(404).json({ error: 'Wallet not found' });
     const w = { ...cur.rows[0], ...req.body, id };
@@ -455,7 +455,7 @@ app.put('/api/wallets/:id', requireAuth, async (req, res) => {
 });
 app.delete('/api/wallets/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('DELETE FROM wallets WHERE id=$1', [id]);
     if (r.rowCount === 0) return res.status(404).json({ error: 'Wallet not found' });
     return res.status(204).end();
@@ -468,7 +468,7 @@ app.delete('/api/wallets/:id', requireAuth, async (req, res) => {
 app.post('/api/wallets/reorder', requireAuth, async (req, res) => {
   const order = req.body.order;
   if (!Array.isArray(order)) return res.status(400).json({ error: 'Invalid order' });
-  if (USE_DB) {
+  if (dbLive) {
     for (let i = 0; i < order.length; i++) await pool.query('UPDATE wallets SET sort=$1 WHERE id=$2', [i + 1, Number(order[i])]);
     const r = await pool.query('SELECT * FROM wallets ORDER BY sort ASC');
     return res.json(r.rows);
@@ -477,7 +477,7 @@ app.post('/api/wallets/reorder', requireAuth, async (req, res) => {
   res.json(mem.wallets.sort((a, b) => a.sort - b.sort));
 });
 async function maxSort() {
-  if (USE_DB) { const r = await pool.query('SELECT COALESCE(MAX(sort),0) AS m FROM wallets'); return Number(r.rows[0].m); }
+  if (dbLive) { const r = await pool.query('SELECT COALESCE(MAX(sort),0) AS m FROM wallets'); return Number(r.rows[0].m); }
   return mem.wallets.length;
 }
 
@@ -531,7 +531,7 @@ app.post('/api/products', requireAuth,
     const name = b.name || b.name_ar || b.name_en;
     const images = Array.isArray(b.images) ? b.images.slice(0, 5) : [];
     const priceYER = b.priceYER ? Number(b.priceYER) : Math.round(Number(b.price) * 530);
-    if (USE_DB) {
+    if (dbLive) {
       const r = await pool.query(
         'INSERT INTO products(name_ar,name_en,name,category,price,price_yer,stock,sku,images,badge,active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
         [b.name_ar || name, b.name_en || name, name, b.category, Number(b.price), priceYER, Number(b.stock), b.sku || null, JSON.stringify(images), b.badge || null, b.active !== false]
@@ -545,7 +545,7 @@ app.post('/api/products', requireAuth,
 );
 app.put('/api/products/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
-  if (USE_DB) {
+  if (dbLive) {
     const cur = await pool.query('SELECT * FROM products WHERE id=$1', [id]);
     if (!cur.rows[0]) return res.status(404).json({ error: 'Product not found' });
     const p = cur.rows[0];
@@ -572,7 +572,7 @@ app.put('/api/products/:id', requireAuth, async (req, res) => {
 });
 app.delete('/api/products/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('DELETE FROM products WHERE id=$1', [id]);
     if (r.rowCount === 0) return res.status(404).json({ error: 'Product not found' });
     return res.status(204).end();
@@ -595,7 +595,7 @@ app.post('/api/orders',
     const total = items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
     const id = 'PM-' + String(100000 + (await nextOrderNum()));
     const order = { id, items, shipping, paymentMethod: paymentMethod || 'cod', walletId: walletId || null, currency: currency || 'YER', total, status: 'pending', createdAt: new Date().toISOString() };
-    if (USE_DB) {
+    if (dbLive) {
       await pool.query(
         'INSERT INTO orders(id,items,shipping,payment_method,wallet_id,currency,total,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
         [id, JSON.stringify(items), JSON.stringify(shipping), order.paymentMethod, order.walletId, order.currency, total, 'pending']
@@ -607,7 +607,7 @@ app.post('/api/orders',
   }
 );
 app.get('/api/orders', requireAuth, async (req, res) => {
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
     return res.json(r.rows);
   }
@@ -615,7 +615,7 @@ app.get('/api/orders', requireAuth, async (req, res) => {
 });
 app.put('/api/orders/:id/status', requireAuth, body('status').isIn(['pending', 'paid', 'shipped', 'cancelled']), async (req, res) => {
   const id = req.params.id;
-  if (USE_DB) {
+  if (dbLive) {
     const r = await pool.query('UPDATE orders SET status=$1 WHERE id=$2 RETURNING *', [req.body.status, id]);
     if (r.rowCount === 0) return res.status(404).json({ error: 'Order not found' });
     return res.json(r.rows[0]);
@@ -626,7 +626,7 @@ app.put('/api/orders/:id/status', requireAuth, body('status').isIn(['pending', '
   res.json(o);
 });
 async function nextOrderNum() {
-  if (USE_DB) { const r = await pool.query('SELECT COUNT(*) AS c FROM orders'); return Number(r.rows[0].c) + 1; }
+  if (dbLive) { const r = await pool.query('SELECT COUNT(*) AS c FROM orders'); return Number(r.rows[0].c) + 1; }
   return mem.nextOrderId++;
 }
 
@@ -650,13 +650,19 @@ if (isProd && process.env.RENDER_EXTERNAL_URL) {
 }
 
 // ---------- Start ----------
+let dbLive = USE_DB;
 async function start() {
-  try {
-    if (USE_DB) await setupDB();
-    else initMem();
-  } catch (e) {
-    console.error('DB setup failed:', e.message);
+  if (dbLive) {
+    try {
+      await setupDB();
+    } catch (e) {
+      console.error('DB setup failed, falling back to memory:', e.message);
+      dbLive = false;
+      initMem();
+    }
+  } else {
+    initMem();
   }
-  app.listen(PORT, () => console.log(`PM Store API v3 listening on ${PORT} (${isProd ? 'production' : 'development'}) db=${USE_DB ? 'postgres' : 'memory'} Phone:+967775201234`));
+  app.listen(PORT, () => console.log(`PM Store API v3 listening on ${PORT} (${isProd ? 'production' : 'development'}) db=${dbLive ? 'postgres' : 'memory'} Phone:+967775201234`));
 }
 start();
