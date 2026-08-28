@@ -13,6 +13,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { body, param, validationResult } = require('express-validator');
 const path = require('path');
+const dns = require('dns');
 const { Pool } = require('pg');
 
 const app = express();
@@ -20,14 +21,28 @@ const PORT = process.env.PORT || 4000;
 const isProd = process.env.NODE_ENV === 'production';
 const USE_DB = !!process.env.DATABASE_URL;
 
-const pool = USE_DB
-  ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-      max: 10,
-      family: 4,
-    })
-  : null;
+let pool = null;
+
+// Resolve DB host to IPv4 explicitly (Render's free network cannot route IPv6).
+async function initPool() {
+  const url = new URL(process.env.DATABASE_URL);
+  let host = url.hostname;
+  try {
+    const r = await dns.promises.lookup(host, { family: 4 });
+    host = r.address;
+  } catch (e) {
+    console.error('DNS lookup failed, using hostname as-is:', e.message);
+  }
+  pool = new Pool({
+    host,
+    port: url.port || 5432,
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: url.pathname.replace(/^\//, ''),
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+  });
+}
 
 // ---------- Middleware ----------
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
@@ -659,6 +674,7 @@ let dbError = null;
 async function start() {
   if (dbLive) {
     try {
+      await initPool();
       await setupDB();
     } catch (e) {
       console.error('DB setup failed, falling back to memory:', e.message);
