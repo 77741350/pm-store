@@ -25,6 +25,7 @@ const pool = USE_DB
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
       max: 10,
+      family: 4,
     })
   : null;
 
