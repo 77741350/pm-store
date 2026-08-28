@@ -645,7 +645,10 @@ app.use((err, req, res, next) => {
 // ---------- Keep-alive (Render free tier) ----------
 if (isProd && process.env.RENDER_EXTERNAL_URL) {
   const selfUrl = process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '');
-  setInterval(() => { fetch(selfUrl + '/api/health').catch(() => {}); }, 10 * 60 * 1000);
+  setInterval(() => {
+    fetch(selfUrl + '/api/health').catch(() => {});
+    if (dbLive) pool.query('SELECT 1').catch(() => {}); // keep Supabase free tier from pausing
+  }, 10 * 60 * 1000);
   console.log(`Keep-alive enabled -> ${selfUrl}/api/health`);
 }
 
