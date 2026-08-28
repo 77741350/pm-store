@@ -275,7 +275,7 @@ function requireRole(...roles) {
 }
 
 // ---------- Health ----------
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString(), version: '3.0', db: dbLive ? 'postgres' : 'memory' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString(), version: '3.0', db: dbLive ? 'postgres' : 'memory', dbError: dbError, hasDbUrl: !!process.env.DATABASE_URL }));
 
 // Public settings & wallets
 app.get('/api/settings', async (req, res) => res.json(await getSettings()));
@@ -654,12 +654,14 @@ if (isProd && process.env.RENDER_EXTERNAL_URL) {
 
 // ---------- Start ----------
 let dbLive = USE_DB;
+let dbError = null;
 async function start() {
   if (dbLive) {
     try {
       await setupDB();
     } catch (e) {
       console.error('DB setup failed, falling back to memory:', e.message);
+      dbError = e.message;
       dbLive = false;
       initMem();
     }
