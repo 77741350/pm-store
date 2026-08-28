@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: pm-store
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@pmstore.com
+      - key: ADMIN_PASSWORD_HASH
+        value: $2a$10$RyBPaiYamMamNiOwBHpaCeoRzn1jHO2qMxPbSrHHz7uJ74xP.M4qu
+      - key: ALLOWED_ORIGINS
+        value: "*"
