@@ -103,6 +103,8 @@ function initMem() {
         { code: 'USD', symbol: '$', name_ar: 'دولار أمريكي', name_en: 'US Dollar', rate: 0.0019, isDefault: false },
       ],
       showWalletsInCategories: true, showWalletsInFooter: true, storeBadges: [],
+      whatsappApiKey: '', whatsappNumber: '+967775201234', whatsappNotifyOnOrder: true,
+      whatsappMessageOrder: '🔔 طلب جديد!\n{orderId}\n💰 المعدل: {total} {currency}\n📦 عدد المنتجات: {count}\n👤 الاسم: {name}\n📱 الهاتف: {phone}\n\nرد على الطلب للتأكيد.',
     },
     products: [
       { id: 1, name_ar: 'سماعة أورا الذكية', name_en: 'Aura Smart Speaker', name: 'Aura Smart Speaker', category: 'smart', price: 89, priceYER: 47000, stock: 42, sku: 'PMS-1001', images: [], active: true },
@@ -115,6 +117,29 @@ function initMem() {
     orders: [],
     nextOrderId: 1,
   };
+}
+
+// ---------- WhatsApp notification (Fonnte.com) ----------
+async function sendWhatsApp(phone, message) {
+  const s = await getSettings();
+  const apiKey = s.whatsappApiKey;
+  if (!apiKey) return { ok: false, error: 'whatsappApiKey not configured' };
+  try {
+    const res = await fetch('https://api.fonnte.com/send', {
+      method: 'POST',
+      headers: { 'Authorization': `tokens ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: phone.replace(/\s/g, ''), message }),
+    });
+    const data = await res.json();
+    return data.ok ? { ok: true } : { ok: false, error: data };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+function generatePaymentLink(orderId, method) {
+  const base = process.env.SITE_URL || 'https://pm-store-7kr3.onrender.com';
+  return `${base}/checkout?order=${orderId}&method=${method}`;
 }
 
 // ---------- DB bootstrap ----------
@@ -158,9 +183,21 @@ async function setupDB() {
       shipping JSONB NOT NULL DEFAULT '{}',
       payment_method TEXT, wallet_id INT, currency TEXT,
       total NUMERIC, status TEXT DEFAULT 'pending',
+      payment_status TEXT DEFAULT 'pending',
+      payment_link TEXT, whatsapp_sent BOOLEAN DEFAULT false,
+      customer_phone TEXT, updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  // Add new columns to existing tables (for already-deployed DBs)
+  const addCol = async (table, col, type) => {
+    try { await pool.query(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`); } catch (_) { /* already exists */ }
+  };
+  await addCol('orders', 'payment_status', 'TEXT DEFAULT \'pending\'');
+  await addCol('orders', 'payment_link', 'TEXT');
+  await addCol('orders', 'whatsapp_sent', 'BOOLEAN DEFAULT false');
+  await addCol('orders', 'customer_phone', 'TEXT');
+  await addCol('orders', 'updated_at', 'TIMESTAMPTZ NOT NULL DEFAULT now()');
 
   // Seed admin
   const email = (process.env.ADMIN_EMAIL || 'admin@pmstore.com').toLowerCase();
@@ -220,6 +257,8 @@ function defaultSettings() {
   return {
     phone: '+967775201234', whatsapp: '+967775201234', email: 'info@pmstore.com',
     address_ar: 'صنعاء، اليمن', address_en: 'Sanaa, Yemen',
+    whatsappApiKey: '', whatsappNumber: '+967775201234',
+    whatsappNotifyOnOrder: true, whatsappMessageOrder: '🔔 طلب جديد!\n{orderId}\n💰 المعدل: {total} {currency}\n📦 عدد المنتجات: {count}\n👤 الاسم: {name}\n📱 الهاتف: {phone}\n\nرد على الطلب للتأكيد.',
     social: { facebook: 'https://facebook.com/pmstore', instagram: 'https://instagram.com/pmstore', tiktok: 'https://tiktok.com/@pmstore', whatsappChannel: 'https://wa.me/967775201234', metaPixelId: process.env.META_PIXEL_ID || '', tiktokPixelId: process.env.TIKTOK_PIXEL_ID || '' },
     ads: { meta: { enabled: false, budget: 0, campaignName: '' }, tiktok: { enabled: false, budget: 0, campaignName: '' }, google: { enabled: false, budget: 0, campaignName: '' }, snapchat: { enabled: false, budget: 0, campaignName: '' } },
     languages: ['ar', 'en'], defaultLang: 'ar',
@@ -514,6 +553,10 @@ app.put('/api/settings', requireAuth, async (req, res) => {
   if (b.address_ar) s.address_ar = b.address_ar;
   if (b.address_en) s.address_en = b.address_en;
   if (b.storeBadges) s.storeBadges = Array.isArray(b.storeBadges) ? b.storeBadges.slice(0, 6) : [];
+  if (b.whatsappApiKey !== undefined) s.whatsappApiKey = b.whatsappApiKey;
+  if (b.whatsappNumber) s.whatsappNumber = b.whatsappNumber;
+  if (b.whatsappNotifyOnOrder !== undefined) s.whatsappNotifyOnOrder = b.whatsappNotifyOnOrder;
+  if (b.whatsappMessageOrder) s.whatsappMessageOrder = b.whatsappMessageOrder;
   await saveSettings(s);
   res.json(s);
 });
@@ -607,15 +650,34 @@ app.post('/api/orders',
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
-    const { items, shipping, paymentMethod, walletId, currency } = req.body;
+    const { items, shipping, paymentMethod, walletId, currency, customerPhone } = req.body;
     const total = items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
     const id = 'PM-' + String(100000 + (await nextOrderNum()));
-    const order = { id, items, shipping, paymentMethod: paymentMethod || 'cod', walletId: walletId || null, currency: currency || 'YER', total, status: 'pending', createdAt: new Date().toISOString() };
+    const method = paymentMethod || 'cod';
+    const paymentLink = (method === 'whatsapp' || method === 'wallet') ? generatePaymentLink(id, method) : null;
+    const order = {
+      id, items, shipping, paymentMethod: method, walletId: walletId || null, currency: currency || 'YER',
+      total, status: 'pending', payment_status: 'pending', payment_link: paymentLink,
+      whatsapp_sent: false, customer_phone: customerPhone || shipping?.phone || '', createdAt: new Date().toISOString()
+    };
     if (dbLive) {
       await pool.query(
-        'INSERT INTO orders(id,items,shipping,payment_method,wallet_id,currency,total,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
-        [id, JSON.stringify(items), JSON.stringify(shipping), order.paymentMethod, order.walletId, order.currency, total, 'pending']
+        'INSERT INTO orders(id,items,shipping,payment_method,wallet_id,currency,total,status,payment_status,payment_link,customer_phone) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+        [id, JSON.stringify(items), JSON.stringify(shipping), method, order.walletId, order.currency, total, 'pending', 'pending', paymentLink, order.customer_phone]
       );
+      // Send WhatsApp notification to merchant
+      if ((await getSettings()).whatsappNotifyOnOrder) {
+        const s = await getSettings();
+        const msg = s.whatsappMessageOrder
+          .replace('{orderId}', id)
+          .replace('{total}', total)
+          .replace('{currency}', order.currency)
+          .replace('{count}', items.length)
+          .replace('{name}', shipping?.name || '')
+          .replace('{phone}', customerPhone || shipping?.phone || '');
+        setTimeout(() => sendWhatsApp(s.whatsappNumber, msg), 2000);
+        await pool.query('UPDATE orders SET whatsapp_sent=true WHERE id=$1', [id]);
+      }
       return res.status(201).json(order);
     }
     mem.orders.push(order);
@@ -625,20 +687,56 @@ app.post('/api/orders',
 app.get('/api/orders', requireAuth, async (req, res) => {
   if (dbLive) {
     const r = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
-    return res.json(r.rows);
+    return res.json(r.rows.map(o => ({ ...o, payment_status: o.payment_status || 'pending', payment_link: o.payment_link || null, whatsapp_sent: o.whatsapp_sent || false })));
   }
-  res.json(mem.orders);
+  res.json(mem.orders.map(o => ({ ...o, payment_status: o.payment_status || 'pending', payment_link: o.payment_link || null, whatsapp_sent: false })));
 });
-app.put('/api/orders/:id/status', requireAuth, body('status').isIn(['pending', 'paid', 'shipped', 'cancelled']), async (req, res) => {
+app.get('/api/orders/:id', requireAuth, async (req, res) => {
   const id = req.params.id;
   if (dbLive) {
-    const r = await pool.query('UPDATE orders SET status=$1 WHERE id=$2 RETURNING *', [req.body.status, id]);
+    const r = await pool.query('SELECT * FROM orders WHERE id=$1', [id]);
     if (r.rowCount === 0) return res.status(404).json({ error: 'Order not found' });
     return res.json(r.rows[0]);
   }
   const o = mem.orders.find((x) => x.id === id);
   if (!o) return res.status(404).json({ error: 'Order not found' });
-  o.status = req.body.status;
+  res.json(o);
+});
+app.put('/api/orders/:id/status', requireAuth, body('status').isIn(['pending', 'paid', 'shipped', 'cancelled']), async (req, res) => {
+  const id = req.params.id;
+  const status = req.body.status;
+  let sql = 'UPDATE orders SET status=$1';
+  const vals = [status];
+  if (status === 'paid') { sql += ', payment_status=$2'; vals.push('paid'); }
+  sql += ' WHERE id=$' + vals.length + ' RETURNING *';
+  if (dbLive) {
+    const r = await pool.query(sql, vals);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'Order not found' });
+    return res.json(r.rows[0]);
+  }
+  const o = mem.orders.find((x) => x.id === id);
+  if (!o) return res.status(404).json({ error: 'Order not found' });
+  o.status = status;
+  if (status === 'paid') o.payment_status = 'paid';
+  res.json(o);
+});
+app.post('/api/orders/:id/confirm-payment', requireAuth, async (req, res) => {
+  const id = req.params.id;
+  if (dbLive) {
+    const r = await pool.query('UPDATE orders SET status=$1, payment_status=$2 WHERE id=$3 RETURNING *', ['paid', 'paid', id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'Order not found' });
+    const o = r.rows[0];
+    // Notify customer payment confirmed
+    if (o.customer_phone) {
+      const s = await getSettings();
+      const msg = `✅ الطلب ${id}\nتم تأكيد الدفع بنجاح!\nشكراً لتسوقكم 🙏\n\nللتواصل: ${s.whatsapp}`;
+      sendWhatsApp(o.customer_phone, msg);
+    }
+    return res.json(o);
+  }
+  const o = mem.orders.find((x) => x.id === id);
+  if (!o) return res.status(404).json({ error: 'Order not found' });
+  o.status = 'paid'; o.payment_status = 'paid';
   res.json(o);
 });
 async function nextOrderNum() {
